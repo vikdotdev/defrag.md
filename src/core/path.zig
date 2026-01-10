@@ -45,9 +45,14 @@ pub const FragmentRef = struct {
         };
     }
 
-    /// Returns "collection/name" for cross-collection, or "name" for local
-    pub fn identifier(self: FragmentRef) []const u8 {
-        return self.raw;
+    /// Returns full "collection/name" identifier (always includes collection)
+    pub fn identifier(self: FragmentRef, arena: *ArenaAllocator, current_collection: Collection) ![]const u8 {
+        if (self.collection != null) {
+            // Cross-collection: already has collection/name format
+            return self.raw;
+        }
+        // Local: prepend current collection name
+        return std.fmt.allocPrint(arena.allocator(), "{s}/{s}", .{ current_collection.name(), self.name });
     }
 };
 
@@ -119,13 +124,23 @@ test "FragmentRef.parse cross-collection" {
 }
 
 test "FragmentRef.identifier local" {
+    var arena = ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const collection = Collection.init("/path/to/my-collection");
     const ref = FragmentRef.parse("my-fragment");
-    try std.testing.expectEqualStrings("my-fragment", ref.identifier());
+    const id = try ref.identifier(&arena, collection);
+    try std.testing.expectEqualStrings("my-collection/my-fragment", id);
 }
 
 test "FragmentRef.identifier cross-collection" {
+    var arena = ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const collection = Collection.init("/path/to/current-collection");
     const ref = FragmentRef.parse("other-collection/my-fragment");
-    try std.testing.expectEqualStrings("other-collection/my-fragment", ref.identifier());
+    const id = try ref.identifier(&arena, collection);
+    try std.testing.expectEqualStrings("other-collection/my-fragment", id);
 }
 
 test "ensureMdExtension without extension" {
