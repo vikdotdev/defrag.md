@@ -3,6 +3,13 @@ const std = @import("std");
 const ArenaAllocator = std.heap.ArenaAllocator;
 const max_file_size = 1024 * 1024;
 
+// Directory and file name constants
+pub const app_name = "defrag";
+pub const config_filename = "config.json";
+pub const fragments_dir = "fragments";
+pub const manifest_ext = ".manifest";
+pub const md_ext = ".md";
+
 pub const ConfigError = error{
     FileNotFound,
     ParseError,
@@ -53,11 +60,11 @@ fn getConfigPath(arena: *ArenaAllocator) ![]const u8 {
     const allocator = arena.allocator();
 
     if (std.posix.getenv("XDG_CONFIG_HOME")) |base| {
-        return std.fmt.allocPrint(allocator, "{s}/defrag/config.json", .{base});
+        return std.fmt.allocPrint(allocator, "{s}/{s}/{s}", .{ base, app_name, config_filename });
     }
 
     const home = std.posix.getenv("HOME") orelse return ConfigError.HomeNotSet;
-    return std.fmt.allocPrint(allocator, "{s}/.config/defrag/config.json", .{home});
+    return std.fmt.allocPrint(allocator, "{s}/.config/{s}/{s}", .{ home, app_name, config_filename });
 }
 
 fn expandTilde(arena: *ArenaAllocator, path: []const u8) ![]const u8 {
