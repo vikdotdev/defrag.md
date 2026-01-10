@@ -15,11 +15,6 @@ pub const ManifestError = error{
     TooManyLevels,
 };
 
-pub const ManifestConfig = struct {
-    /// Heading wrapper template: e.g. "{identifier}" - heading level added automatically from nesting
-    heading_wrapper_template: []const u8 = "{" ++ heading_wrapper_identifier ++ "}",
-};
-
 /// A single fragment entry from the manifest
 pub const FragmentEntry = struct {
     level: u8, // 1-6
@@ -29,15 +24,23 @@ pub const FragmentEntry = struct {
 
 /// Parsed manifest
 pub const Manifest = struct {
-    config: ManifestConfig,
+    /// Heading wrapper template: e.g. "{identifier}" - heading level added automatically from nesting
+    heading_wrapper_template: []const u8,
     fragments: []const FragmentEntry,
+
+    pub fn init() Manifest {
+        return .{
+            .heading_wrapper_template = "{" ++ heading_wrapper_identifier ++ "}",
+            .fragments = &.{},
+        };
+    }
 };
 
 /// Parse a manifest file
 pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
     const allocator = arena.allocator();
 
-    var config = ManifestConfig{};
+    var manifest = Manifest.init();
     var fragments: ArrayList(FragmentEntry) = .empty;
 
     var in_config = false;
@@ -71,7 +74,7 @@ pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
         if (in_config) {
             if (parseOption(trimmed)) |opt| {
                 if (std.mem.eql(u8, opt.key, key_heading_wrapper_template)) {
-                    config.heading_wrapper_template = parseConfigValue(opt.value);
+                    manifest.heading_wrapper_template = parseConfigValue(opt.value);
                 }
             }
             continue;
@@ -89,10 +92,8 @@ pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
         return ManifestError.MissingFragmentsSection;
     }
 
-    return Manifest{
-        .config = config,
-        .fragments = fragments.items,
-    };
+    manifest.fragments = fragments.items;
+    return manifest;
 }
 
 const KeyValue = struct {
@@ -189,7 +190,7 @@ test "parse simple manifest" {
 
     const manifest = try parseManifest(&arena, content);
 
-    try std.testing.expectEqualStrings("{identifier}", manifest.config.heading_wrapper_template);
+    try std.testing.expectEqualStrings("{identifier}", manifest.heading_wrapper_template);
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
     try std.testing.expectEqualStrings("intro", manifest.fragments[0].name);
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
