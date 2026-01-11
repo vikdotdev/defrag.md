@@ -2,7 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 
 const config_mod = @import("../config.zig");
-const path_mod = @import("../core/path.zig");
+const fs = @import("../core/fs.zig");
 const manifest_mod = @import("../core/manifest.zig");
 const fragment_mod = @import("../core/fragment.zig");
 const cli_mod = @import("../cli.zig");
@@ -11,8 +11,8 @@ const log = @import("../log.zig");
 const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
 const Config = config_mod.Config;
-const Collection = path_mod.Collection;
-const FragmentRef = path_mod.FragmentRef;
+const Collection = fragment_mod.Collection;
+const FragmentRef = fragment_mod.FragmentRef;
 const BuildOptions = cli_mod.BuildOptions;
 
 pub const BuildError = error{
@@ -45,7 +45,7 @@ fn buildManifest(
     const collection = Collection.init(manifest_dir);
 
     // Read manifest file
-    const manifest_content = readFile(allocator, manifest_path) catch {
+    const manifest_content = fs.readFile(allocator, manifest_path) catch {
         return BuildError.ManifestNotFound;
     };
 
@@ -61,7 +61,7 @@ fn buildManifest(
         const ref = FragmentRef.parse(entry.name);
 
         // Resolve fragment path
-        const frag_path = path_mod.resolveFragmentPath(arena, collection, ref, config) catch {
+        const frag_path = fragment_mod.resolveFragmentPath(arena, collection, ref, config) catch {
             try log.warn("Fragment not found: {s}", .{entry.name});
             continue;
         };
@@ -97,20 +97,9 @@ fn buildManifest(
     // Determine output path
     const final_output_path = output_path orelse try defaultOutputPath(allocator, manifest_path);
 
-    // Ensure output directory exists
-    if (std.fs.path.dirname(final_output_path)) |dir| {
-        std.fs.cwd().makePath(dir) catch {};
-    }
-
     // Write output file
-    const file = std.fs.cwd().createFile(final_output_path, .{}) catch {
-        return BuildError.OutputError;
-    };
-    defer file.close();
-
-    file.writeAll(output.items) catch {
-        return BuildError.OutputError;
-    };
+    try fs.ensureParentDir(final_output_path);
+    try fs.writeFile(final_output_path, output.items);
 
     try log.info("Built: {s}", .{final_output_path});
 }
@@ -124,16 +113,10 @@ fn buildAll(arena: *ArenaAllocator, config: Config) !void {
 }
 
 /// Generate default output path: build/<collection-name>.md
-fn defaultOutputPath(allocator: std.mem.Allocator, manifest_path: []const u8) ![]const u8 {
+fn defaultOutputPath(allocator: mem.Allocator, manifest_path: []const u8) ![]const u8 {
     const dir = std.fs.path.dirname(manifest_path) orelse ".";
     const collection_name = std.fs.path.basename(dir);
     return std.fmt.allocPrint(allocator, "build/{s}.md", .{collection_name});
-}
-
-fn readFile(allocator: std.mem.Allocator, file_path: []const u8) ![]const u8 {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    return file.readToEndAlloc(allocator, 10 * 1024 * 1024);
 }
 
 // Tests

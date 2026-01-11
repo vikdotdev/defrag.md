@@ -5,7 +5,7 @@ const log = @import("log.zig");
 const build_cmd = @import("commands/build.zig");
 
 // Core modules for testing
-const path = @import("core/path.zig");
+const fs = @import("core/fs.zig");
 const manifest = @import("core/manifest.zig");
 const heading = @import("core/heading.zig");
 const fragment = @import("core/fragment.zig");
@@ -106,7 +106,7 @@ test {
     _ = cli;
     _ = log;
     _ = build_cmd;
-    _ = path;
+    _ = fs;
     _ = manifest;
     _ = heading;
     _ = fragment;
