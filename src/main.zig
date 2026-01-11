@@ -3,6 +3,7 @@ const config = @import("config.zig");
 const path = @import("core/path.zig");
 const manifest = @import("core/manifest.zig");
 const heading = @import("core/heading.zig");
+const fragment = @import("core/fragment.zig");
 
 pub fn main() !void {
     var stdout_buf: [4096]u8 = undefined;
@@ -17,4 +18,5 @@ test {
     _ = path;
     _ = manifest;
     _ = heading;
+    _ = fragment;
 }
