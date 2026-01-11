@@ -1,19 +1,15 @@
 const std = @import("std");
 const mem = std.mem;
-
-const config_mod = @import("../config.zig");
-const fs = @import("../core/fs.zig");
-const manifest_mod = @import("../core/manifest.zig");
-const fragment_mod = @import("../core/fragment.zig");
-const cli_mod = @import("../cli.zig");
+const fs = @import("../fs.zig");
 const log = @import("../log.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
-const Config = config_mod.Config;
-const Collection = fragment_mod.Collection;
-const FragmentRef = fragment_mod.FragmentRef;
-const BuildOptions = cli_mod.BuildOptions;
+const Config = @import("../config.zig").Config;
+const Manifest = @import("../core/manifest.zig").Manifest;
+const Collection = @import("../core/fragment.zig").Collection;
+const Fragment = @import("../core/fragment.zig").Fragment;
+const BuildOptions = @import("../cli.zig").BuildOptions;
 
 pub const BuildError = error{
     ManifestNotFound,
@@ -50,7 +46,7 @@ fn buildManifest(
     };
 
     // Parse manifest
-    const manifest = manifest_mod.parseManifest(arena, manifest_content) catch {
+    const manifest = Manifest.parse(arena, manifest_content) catch {
         return BuildError.InvalidManifest;
     };
 
@@ -58,19 +54,17 @@ fn buildManifest(
     var output: ArrayList(u8) = .empty;
 
     for (manifest.fragments) |entry| {
-        const ref = FragmentRef.parse(entry.name);
+        const fragment_id = Fragment.Id.parse(entry.name);
 
-        // Resolve fragment path
-        const frag_path = fragment_mod.resolveFragmentPath(arena, collection, ref, config) catch {
+        const frag_path = Fragment.resolve(arena, collection, fragment_id, config) catch {
             try log.warn("Fragment not found: {s}", .{entry.name});
             continue;
         };
 
-        // Process fragment
-        const processed = fragment_mod.processFragment(
+        const processed = Fragment.process(
             arena,
             frag_path,
-            ref,
+            fragment_id,
             collection,
             manifest,
             entry.level,
@@ -118,8 +112,6 @@ fn defaultOutputPath(allocator: mem.Allocator, manifest_path: []const u8) ![]con
     const collection_name = std.fs.path.basename(dir);
     return std.fmt.allocPrint(allocator, "build/{s}.md", .{collection_name});
 }
-
-// Tests
 
 test "defaultOutputPath" {
     const allocator = std.testing.allocator;

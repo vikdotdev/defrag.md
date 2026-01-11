@@ -1,17 +1,14 @@
 const std = @import("std");
-const config_mod = @import("config.zig");
 const cli = @import("cli.zig");
-const log = @import("log.zig");
 const build_cmd = @import("commands/build.zig");
-
-// Core modules for testing
-const fs = @import("core/fs.zig");
+const fs = @import("fs.zig");
+const log = @import("log.zig");
 const manifest = @import("core/manifest.zig");
 const heading = @import("core/heading.zig");
 const fragment = @import("core/fragment.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
-const Config = config_mod.Config;
+const Config = @import("config.zig").Config;
 
 const version = "0.1.0";
 
@@ -102,7 +99,7 @@ fn printError(parse_err: cli.ParseError) !void {
 }
 
 test {
-    _ = config_mod;
+    _ = @import("config.zig");
     _ = cli;
     _ = log;
     _ = build_cmd;

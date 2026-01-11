@@ -1,7 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("cmark.h");
-});
+const c = @cImport(@cInclude("cmark.h"));
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 
@@ -90,8 +88,6 @@ fn adjustHeadingLevels(doc: *c.cmark_node, shift: i32) void {
         }
     }
 }
-
-// Tests
 
 test "normalizeHeadings no change needed" {
     var arena = ArenaAllocator.init(std.testing.allocator);
