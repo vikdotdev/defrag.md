@@ -1,23 +1,22 @@
 #!/bin/sh
-# Test new command with missing --database argument
+# Test new command with missing database name
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "Testing: New command with missing database argument"
+echo "Testing: New command - missing database name"
 
-# Test new command without --database argument
-if LLM_RULES_DIR=test/tmp ./scripts/ai-rules new 2>test/tmp/new-02-stderr.txt; then
-    echo "FAIL: New command should have failed without --database"
+# Test new without database name (should fail)
+if ./zig-out/bin/defrag new 2>test/tmp/new-02-stderr.txt; then
+    echo "FAIL: new should fail without database name"
     exit 1
 fi
 
-# Check that proper error message was displayed
-if ! grep -q "Error: --database is required" test/tmp/new-02-stderr.txt; then
-    echo "FAIL: Expected error message not found"
-    echo "Stderr output:"
+# Check error message
+if ! grep -q "Missing required argument" test/tmp/new-02-stderr.txt; then
+    echo "FAIL: Expected 'Missing required argument' error"
     cat test/tmp/new-02-stderr.txt
     exit 1
 fi
 
-echo "PASS: New command correctly fails without --database argument"
+echo "PASS: New command - missing database name"

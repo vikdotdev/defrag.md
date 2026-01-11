@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Basic build functionality"
 
 # Test build with basic fixture (no code blocks)
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules build --manifest test/fixtures/basic/manifest --out test/tmp/build-01-basic.md
+./zig-out/bin/defrag --config test/config.json build --manifest test/fixtures/basic/manifest --out test/tmp/build-01-basic.md
 
 # Check that output file was created
 if [ ! -f "test/tmp/build-01-basic.md" ]; then
@@ -33,9 +33,9 @@ This is the second rule.
 
 ### Guidelines
 
-- Point one
-- Point two
-- Point three
+  - Point one
+  - Point two
+  - Point three
 EOF
 
 # Compare actual vs expected

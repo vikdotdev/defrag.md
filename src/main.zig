@@ -19,38 +19,49 @@ pub fn main() !void {
     var arena = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const args = try std.process.argsAlloc(arena.allocator());
-    const command = cli.parseArgs(args) catch |parse_err| {
+    const parse_result = cli.parseArgs(args) catch |parse_err| {
         try printError(parse_err);
-        return;
+        std.process.exit(1);
     };
 
-    if (command == .help) {
+    if (parse_result.command == .help) {
         try printUsage();
         return;
     }
 
-    const config = Config.load(&arena) catch |load_err| {
+    const config = if (parse_result.config_path) |path|
+        Config.loadFromPath(&arena, path)
+    else
+        Config.load(&arena);
+
+    const loaded_config = config catch |load_err| {
         try log.err("Failed to load config: {}", .{load_err});
-        return;
+        std.process.exit(1);
     };
 
-    switch (command) {
+    switch (parse_result.command) {
         .build => |opts| {
-            build_cmd.run(&arena, opts, config) catch |run_err| {
-                try log.err("Build failed: {}", .{run_err});
+            build_cmd.run(&arena, opts, loaded_config) catch {
+                std.process.exit(1);
             };
         },
         .validate => |opts| {
-            validate_cmd.run(&arena, opts, config) catch {};
+            validate_cmd.run(&arena, opts, loaded_config) catch {
+                std.process.exit(1);
+            };
         },
         .new => |opts| {
-            new_cmd.run(&arena, opts) catch {};
+            new_cmd.run(&arena, opts) catch {
+                std.process.exit(1);
+            };
         },
         .install => {
             try log.info("install not yet implemented", .{});
         },
         .build_link => |opts| {
-            build_link_cmd.run(&arena, opts, config) catch {};
+            build_link_cmd.run(&arena, opts, loaded_config) catch {
+                std.process.exit(1);
+            };
         },
         .help => unreachable,
     }
@@ -61,7 +72,10 @@ fn printUsage() !void {
         \\defrag - Build and manage AI instruction rulesets
         \\
         \\Usage:
-        \\    defrag <command> [options]
+        \\    defrag [--config <path>] <command> [options]
+        \\
+        \\Global Options:
+        \\    --config, -c  Path to config file
         \\
         \\Commands:
         \\    build       Build documentation from a manifest
@@ -75,6 +89,7 @@ fn printUsage() !void {
         \\    defrag build path/to/manifest
         \\    defrag build --manifest path/to/manifest --out output.md
         \\    defrag build --all
+        \\    defrag --config test/config.json build --all
         \\    defrag new my-collection
         \\
         \\Version:

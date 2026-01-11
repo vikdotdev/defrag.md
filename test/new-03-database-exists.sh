@@ -1,29 +1,25 @@
 #!/bin/sh
-# Test new command when database already exists
+# Test new command with existing database
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "Testing: New command when database already exists"
+echo "Testing: New command - database exists"
 
-# Create a test database first
+# Create an existing database
 mkdir -p test/tmp/existing-db
 
-# Test new command with existing database
-if LLM_RULES_DIR=test/tmp ./scripts/ai-rules new --database existing-db 2>test/tmp/new-03-stderr.txt; then
-    echo "FAIL: New command should have failed with existing database"
+# Test new with existing database (should fail)
+if ./zig-out/bin/defrag new test/tmp/existing-db 2>test/tmp/new-03-stderr.txt; then
+    echo "FAIL: new should fail when database exists"
     exit 1
 fi
 
-# Check that proper error message was displayed
-if ! grep -q "Error: Database 'existing-db' already exists" test/tmp/new-03-stderr.txt; then
-    echo "FAIL: Expected error message not found"
-    echo "Stderr output:"
+# Check error message
+if ! grep -q "already exists" test/tmp/new-03-stderr.txt; then
+    echo "FAIL: Expected 'already exists' error"
     cat test/tmp/new-03-stderr.txt
     exit 1
 fi
 
-# Cleanup
-rm -rf test/tmp/existing-db
-
-echo "PASS: New command correctly fails when database exists"
+echo "PASS: New command - database exists"

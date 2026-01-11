@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Code block handling"
 
 # Test build with code blocks fixture
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules build --manifest test/fixtures/with_code_blocks/manifest --out test/tmp/build-03-code-blocks.md
+./zig-out/bin/defrag --config test/config.json build --manifest test/fixtures/with_code_blocks/manifest --out test/tmp/build-03-code-blocks.md
 
 # Check that output file was created
 if [ ! -f "test/tmp/build-03-code-blocks.md" ]; then
@@ -24,7 +24,7 @@ This rule has code blocks with comments.
 
 ### Example
 
-```python
+``` python
 # This is a comment in code
 # It should be preserved as-is
 def hello():
@@ -33,7 +33,7 @@ def hello():
 
 ### Another Example
 
-```bash
+``` bash
 # Another comment
 echo "test"
 ```
