@@ -33,7 +33,7 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
 
     // Determine collection directory from manifest path
     const manifest_dir = std.fs.path.dirname(build_options.manifest_path) orelse ".";
-    const collection = Collection.init(manifest_dir);
+    const collection = try Collection.init(allocator, manifest_dir);
 
     // Read manifest file
     const manifest_content = fs.readFile(allocator, build_options.manifest_path) catch {
