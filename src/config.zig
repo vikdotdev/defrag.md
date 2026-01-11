@@ -11,6 +11,7 @@ pub const Config = struct {
     pub const app_name = "defrag";
     pub const config_filename = "config.json";
     pub const fragments_dir = "fragments";
+    pub const build_dir = "build";
     pub const manifest_ext = ".manifest";
 
     pub const Error = error{
@@ -69,4 +70,3 @@ fn getConfigPath(arena: *ArenaAllocator) ![]const u8 {
     const home = std.posix.getenv("HOME") orelse return Config.Error.HomeNotSet;
     return std.fmt.allocPrint(allocator, "{s}/.config/{s}/{s}", .{ home, Config.app_name, Config.config_filename });
 }
-
