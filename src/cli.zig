@@ -1,8 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
 
-const ArenaAllocator = std.heap.ArenaAllocator;
-
 pub const Command = union(enum) {
     build: BuildOptions,
     validate: ValidateOptions,
@@ -196,8 +194,6 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
         .link_path = link_path.?,
     };
 }
-
-// Tests
 
 test "parseArgs help" {
     const args = &[_][]const u8{ "defrag", "help" };

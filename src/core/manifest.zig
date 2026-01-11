@@ -5,43 +5,45 @@ const ArrayList = std.ArrayList;
 
 const section_config = "[config]";
 const section_fragments = "[fragments]";
-const key_heading_wrapper_template = "heading_wrapper_template";
-pub const heading_wrapper_identifier = "identifier";
-
-pub const ManifestError = error{
-    MissingFragmentsSection,
-    InvalidNesting,
-    EmptyFragmentName,
-    TooManyLevels,
-};
-
-/// A single fragment entry from the manifest
-pub const FragmentEntry = struct {
-    level: u8, // 1-6
-    name: []const u8,
-    line_number: usize,
-};
+const heading_wrapper_template_key = "heading_wrapper_template";
 
 /// Parsed manifest
 pub const Manifest = struct {
-    /// Heading wrapper template: e.g. "{identifier}" - heading level added automatically from nesting
     heading_wrapper_template: []const u8,
     fragments: []const FragmentEntry,
 
+    pub const heading_template_variable_id = "fragment_id";
+
+    pub const Error = error{
+        MissingFragmentsSection,
+        InvalidNesting,
+        EmptyFragmentName,
+        TooManyLevels,
+    };
+
+    pub const FragmentEntry = struct {
+        level: u8,
+        name: []const u8,
+        line_number: usize,
+    };
+
     pub fn init() Manifest {
         return .{
-            .heading_wrapper_template = "{" ++ heading_wrapper_identifier ++ "}",
+            .heading_wrapper_template = "{" ++ heading_template_variable_id ++ "}",
             .fragments = &.{},
         };
     }
+
+    pub fn parse(arena: *ArenaAllocator, content: []const u8) !Manifest {
+        return parseManifest(arena, content);
+    }
 };
 
-/// Parse a manifest file
-pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
+fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
     const allocator = arena.allocator();
 
     var manifest = Manifest.init();
-    var fragments: ArrayList(FragmentEntry) = .empty;
+    var fragments: ArrayList(Manifest.FragmentEntry) = .empty;
 
     var in_config = false;
     var in_fragments = false;
@@ -53,10 +55,8 @@ pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
         line_number += 1;
         const trimmed = std.mem.trim(u8, line, " \t\r");
 
-        // Skip empty lines and comments
         if (trimmed.len == 0 or trimmed[0] == '#') continue;
 
-        // Section headers
         if (trimmed.len >= 2 and trimmed[0] == '[') {
             if (std.mem.eql(u8, trimmed, section_config)) {
                 in_config = true;
@@ -70,17 +70,15 @@ pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
             }
         }
 
-        // Parse options
         if (in_config) {
             if (parseOption(trimmed)) |opt| {
-                if (std.mem.eql(u8, opt.key, key_heading_wrapper_template)) {
+                if (std.mem.eql(u8, opt.key, heading_wrapper_template_key)) {
                     manifest.heading_wrapper_template = parseConfigValue(opt.value);
                 }
             }
             continue;
         }
 
-        // Parse fragments
         if (in_fragments) {
             const entry = try parseFragmentLine(trimmed, line_number, prev_level);
             prev_level = entry.level;
@@ -89,7 +87,7 @@ pub fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
     }
 
     if (!in_fragments and fragments.items.len == 0) {
-        return ManifestError.MissingFragmentsSection;
+        return Manifest.Error.MissingFragmentsSection;
     }
 
     manifest.fragments = fragments.items;
@@ -103,7 +101,6 @@ const KeyValue = struct {
 
 fn parseConfigValue(value: []const u8) []const u8 {
     const trimmed = std.mem.trim(u8, value, " \t");
-    // Remove quotes if present
     if (trimmed.len >= 2 and trimmed[0] == '"' and trimmed[trimmed.len - 1] == '"') {
         return trimmed[1 .. trimmed.len - 1];
     }
@@ -118,8 +115,7 @@ fn parseOption(line: []const u8) ?KeyValue {
     };
 }
 
-fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !FragmentEntry {
-    // Count leading pipes
+fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Manifest.FragmentEntry {
     var level: u8 = 0;
     var i: usize = 0;
     while (i < line.len and line[i] == '|') : (i += 1) {
@@ -127,25 +123,21 @@ fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Frag
     }
 
     if (level == 0) {
-        return ManifestError.InvalidNesting;
+        return Manifest.Error.InvalidNesting;
     }
     if (level > 6) {
-        return ManifestError.TooManyLevels;
+        return Manifest.Error.TooManyLevels;
     }
 
-    // Validate nesting: can only increase by 1
     if (level > prev_level + 1 and prev_level > 0) {
-        // Auto-correct to prev_level + 1
         level = prev_level + 1;
     }
 
-    // Extract fragment name
     const name = std.mem.trim(u8, line[i..], " \t");
     if (name.len == 0) {
-        return ManifestError.EmptyFragmentName;
+        return Manifest.Error.EmptyFragmentName;
     }
 
-    // Strip inline comment
     const comment_pos = std.mem.indexOf(u8, name, "#");
     const clean_name = if (comment_pos) |pos|
         std.mem.trim(u8, name[0..pos], " \t")
@@ -153,50 +145,48 @@ fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Frag
         name;
 
     if (clean_name.len == 0) {
-        return ManifestError.EmptyFragmentName;
+        return Manifest.Error.EmptyFragmentName;
     }
 
-    return FragmentEntry{
+    return Manifest.FragmentEntry{
         .level = level,
         .name = clean_name,
         .line_number = line_number,
     };
 }
 
-// Tests
-
 test "parseConfigValue with quotes" {
-    const template = parseConfigValue("\"{identifier}\"");
-    try std.testing.expectEqualStrings("{identifier}", template);
+    const template = parseConfigValue("\"{fragment_id}\"");
+    try std.testing.expectEqualStrings("{fragment_id}", template);
 }
 
 test "parseConfigValue without quotes" {
-    const template = parseConfigValue("{identifier}");
-    try std.testing.expectEqualStrings("{identifier}", template);
+    const template = parseConfigValue("{fragment_id}");
+    try std.testing.expectEqualStrings("{fragment_id}", template);
 }
 
-test "parse simple manifest" {
+test "Manifest.parse simple" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
         \\[config]
-        \\heading_wrapper_template = "{identifier}"
+        \\heading_wrapper_template = "{fragment_id}"
         \\
         \\[fragments]
         \\| intro
         \\| setup
     ;
 
-    const manifest = try parseManifest(&arena, content);
+    const manifest = try Manifest.parse(&arena, content);
 
-    try std.testing.expectEqualStrings("{identifier}", manifest.heading_wrapper_template);
+    try std.testing.expectEqualStrings("{fragment_id}", manifest.heading_wrapper_template);
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
     try std.testing.expectEqualStrings("intro", manifest.fragments[0].name);
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
 }
 
-test "parse nested fragments" {
+test "Manifest.parse nested fragments" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
@@ -208,7 +198,7 @@ test "parse nested fragments" {
         \\| sibling
     ;
 
-    const manifest = try parseManifest(&arena, content);
+    const manifest = try Manifest.parse(&arena, content);
 
     try std.testing.expectEqual(@as(usize, 4), manifest.fragments.len);
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
@@ -217,7 +207,7 @@ test "parse nested fragments" {
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[3].level);
 }
 
-test "parse with comments" {
+test "Manifest.parse with comments" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
@@ -229,13 +219,13 @@ test "parse with comments" {
         \\| setup
     ;
 
-    const manifest = try parseManifest(&arena, content);
+    const manifest = try Manifest.parse(&arena, content);
 
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
     try std.testing.expectEqualStrings("intro", manifest.fragments[0].name);
 }
 
-test "auto-correct invalid nesting" {
+test "Manifest.parse auto-correct invalid nesting" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
@@ -245,13 +235,13 @@ test "auto-correct invalid nesting" {
         \\||| level3_after_1
     ;
 
-    const manifest = try parseManifest(&arena, content);
+    const manifest = try Manifest.parse(&arena, content);
 
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
-    try std.testing.expectEqual(@as(u8, 2), manifest.fragments[1].level); // corrected from 3 to 2
+    try std.testing.expectEqual(@as(u8, 2), manifest.fragments[1].level);
 }
 
-test "missing fragments section" {
+test "Manifest.parse missing fragments section" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
@@ -260,6 +250,6 @@ test "missing fragments section" {
         \\title = "{name}"
     ;
 
-    const result = parseManifest(&arena, content);
-    try std.testing.expectError(ManifestError.MissingFragmentsSection, result);
+    const result = Manifest.parse(&arena, content);
+    try std.testing.expectError(Manifest.Error.MissingFragmentsSection, result);
 }
