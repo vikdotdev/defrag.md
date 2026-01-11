@@ -11,13 +11,25 @@ const Manifest = @import("manifest.zig").Manifest;
 /// A collection directory (contains manifest and fragments/)
 pub const Collection = struct {
     path: []const u8,
+    resolved_name: []const u8,
 
-    pub fn init(path: []const u8) Collection {
-        return .{ .path = path };
+    pub fn init(allocator: mem.Allocator, path: []const u8) !Collection {
+        const resolved_name = if (mem.eql(u8, path, "."))
+            try resolveCurrentDirName(allocator)
+        else
+            std.fs.path.basename(path);
+
+        return .{ .path = path, .resolved_name = resolved_name };
     }
 
     pub fn name(self: Collection) []const u8 {
-        return std.fs.path.basename(self.path);
+        return self.resolved_name;
+    }
+
+    fn resolveCurrentDirName(allocator: mem.Allocator) ![]const u8 {
+        var buf: [std.fs.max_path_bytes]u8 = undefined;
+        const cwd = try std.fs.cwd().realpath(".", &buf);
+        return allocator.dupe(u8, std.fs.path.basename(cwd));
     }
 };
 
@@ -181,7 +193,7 @@ fn formatHeading(allocator: mem.Allocator, text: []const u8, level: u8) ![]const
 }
 
 test "Collection.name" {
-    const collection = Collection.init("/home/user/collections/my-collection");
+    const collection = try Collection.init(std.testing.allocator, "/home/user/collections/my-collection");
     try std.testing.expectEqualStrings("my-collection", collection.name());
 }
 
@@ -201,7 +213,7 @@ test "Fragment.Id.full local" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
-    const collection = Collection.init("/path/to/my-collection");
+    const collection = try Collection.init(arena.allocator(), "/path/to/my-collection");
     const fragment_id = Fragment.Id.parse("my-fragment");
     const full = try fragment_id.full(&arena, collection);
     try std.testing.expectEqualStrings("my-collection/my-fragment", full);
@@ -211,7 +223,7 @@ test "Fragment.Id.full cross-collection" {
     var arena = ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
-    const collection = Collection.init("/path/to/current-collection");
+    const collection = try Collection.init(arena.allocator(), "/path/to/current-collection");
     const fragment_id = Fragment.Id.parse("other-collection/my-fragment");
     const full = try fragment_id.full(&arena, collection);
     try std.testing.expectEqualStrings("other-collection/my-fragment", full);

@@ -1,6 +1,9 @@
 const std = @import("std");
 const cli = @import("cli.zig");
 const build_cmd = @import("commands/build.zig");
+const validate_cmd = @import("commands/validate.zig");
+const new_cmd = @import("commands/new.zig");
+const build_link_cmd = @import("commands/build_link.zig");
 const fs = @import("fs.zig");
 const log = @import("log.zig");
 const manifest = @import("core/manifest.zig");
@@ -37,17 +40,17 @@ pub fn main() !void {
                 try log.err("Build failed: {}", .{run_err});
             };
         },
-        .validate => {
-            try log.info("validate not yet implemented", .{});
+        .validate => |opts| {
+            validate_cmd.run(&arena, opts, config) catch {};
         },
-        .new => {
-            try log.info("new not yet implemented", .{});
+        .new => |opts| {
+            new_cmd.run(&arena, opts) catch {};
         },
         .install => {
             try log.info("install not yet implemented", .{});
         },
-        .build_link => {
-            try log.info("build-link not yet implemented", .{});
+        .build_link => |opts| {
+            build_link_cmd.run(&arena, opts, config) catch {};
         },
         .help => unreachable,
     }
@@ -103,6 +106,9 @@ test {
     _ = cli;
     _ = log;
     _ = build_cmd;
+    _ = validate_cmd;
+    _ = new_cmd;
+    _ = build_link_cmd;
     _ = fs;
     _ = manifest;
     _ = heading;
