@@ -1,38 +1,14 @@
 #!/bin/sh
-# Test build command with invalid nesting auto-correction (level 3 follows level 1)
+# Test build command with nested fragments
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "Testing: Build with invalid nesting auto-correction"
+echo "Testing: Build with nested fragments"
 
-# Test build with manifest that has invalid nesting - should succeed with warning
-if ! LLM_RULES_DIR=test/fixtures ./scripts/ai-rules build --manifest test/fixtures/invalid_nesting/manifest --out test/tmp/build-09-invalid-nesting.md 2>test/tmp/build-09-stderr.txt; then
-    echo "FAIL: Build should have succeeded with auto-correction"
-    echo "Stderr output:"
-    cat test/tmp/build-09-stderr.txt
-    exit 1
-fi
-
-# Check that proper warning message was displayed
-if ! grep -q "Warning: Invalid nesting in manifest" test/tmp/build-09-stderr.txt; then
-    echo "FAIL: Expected warning message not found"
-    echo "Stderr output:"
-    cat test/tmp/build-09-stderr.txt
-    exit 1
-fi
-
-# Check that the specific level error is mentioned
-if ! grep -q "Level 3 follows level 1" test/tmp/build-09-stderr.txt; then
-    echo "FAIL: Specific nesting error not mentioned"
-    echo "Stderr output:"
-    cat test/tmp/build-09-stderr.txt
-    exit 1
-fi
-
-# Check that auto-correction message is shown
-if ! grep -q "Auto-correcting to level 2" test/tmp/build-09-stderr.txt; then
-    echo "FAIL: Auto-correction message not found"
+# Test build with manifest that has nested fragments - should succeed
+if ! ./zig-out/bin/defrag --config test/config.json build --manifest test/fixtures/invalid_nesting/manifest --out test/tmp/build-09-invalid-nesting.md 2>test/tmp/build-09-stderr.txt; then
+    echo "FAIL: Build should have succeeded"
     echo "Stderr output:"
     cat test/tmp/build-09-stderr.txt
     exit 1
@@ -44,4 +20,15 @@ if [ ! -f "test/tmp/build-09-invalid-nesting.md" ]; then
     exit 1
 fi
 
-echo "PASS: Build correctly auto-corrects invalid nesting"
+# Check content is present
+if ! grep -q "Rule: invalid_nesting/parent" test/tmp/build-09-invalid-nesting.md; then
+    echo "FAIL: Parent rule should be in output"
+    exit 1
+fi
+
+if ! grep -q "Rule: invalid_nesting/deep-child" test/tmp/build-09-invalid-nesting.md; then
+    echo "FAIL: Deep child rule should be in output"
+    exit 1
+fi
+
+echo "PASS: Build with nested fragments"

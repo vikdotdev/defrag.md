@@ -1,3 +1,7 @@
+[config]
+heading_wrapper_template = "Rule: {fragment_id}"
+
+[fragments]
 # Test manifest with invalid nesting (level 3 follows level 1)
 | parent
 ||| deep-child

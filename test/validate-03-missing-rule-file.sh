@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Validate with missing rule file"
 
 # Test validate with manifest that references non-existent rule
-if LLM_RULES_DIR=test/fixtures ./scripts/ai-rules validate --manifest test/fixtures/missing_rule/manifest >test/tmp/validate-03-output.txt 2>&1; then
+if ./zig-out/bin/defrag --config test/config.json validate --manifest test/fixtures/missing_rule/manifest >test/tmp/validate-03-output.txt 2>&1; then
     echo "FAIL: Validate should have failed with missing rule file"
     exit 1
 fi

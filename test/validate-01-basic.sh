@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Validate command"
 
 # Test validate on existing basic fixture (should pass) - capture output
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules validate --manifest test/fixtures/basic/manifest > test/tmp/validate-01-output.txt
+./zig-out/bin/defrag --config test/config.json validate --manifest test/fixtures/basic/manifest > test/tmp/validate-01-output.txt
 
 # Create expected output for successful validation
 cat > test/tmp/validate-01-expected.txt <<'EOF'
@@ -40,11 +40,11 @@ if ! diff -q "test/tmp/validate-01-output.txt" "test/tmp/validate-01-expected.tx
 fi
 
 # Test validate with non-existent manifest (should fail with specific error)
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules validate --manifest test/fixtures/nonexistent/manifest > test/tmp/validate-01-error.txt 2>&1 || true
+./zig-out/bin/defrag --config test/config.json validate --manifest test/fixtures/nonexistent/manifest > test/tmp/validate-01-error.txt 2>&1 || true
 
 # Create expected error output
 cat > test/tmp/validate-01-expected-error.txt <<'EOF'
-Error: Manifest file not found: test/fixtures/nonexistent/manifest
+ERROR: Manifest file not found: test/fixtures/nonexistent/manifest
 EOF
 
 # Compare actual vs expected error output

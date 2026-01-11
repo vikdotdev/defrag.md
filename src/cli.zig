@@ -1,6 +1,11 @@
 const std = @import("std");
 const mem = std.mem;
 
+pub const ParseResult = struct {
+    command: Command,
+    config_path: ?[]const u8 = null,
+};
+
 pub const Command = union(enum) {
     build: BuildOptions,
     validate: ValidateOptions,
@@ -37,32 +42,49 @@ pub const ParseError = error{
     UnknownOption,
 };
 
-pub fn parseArgs(args: []const []const u8) ParseError!Command {
-    if (args.len < 2) {
+pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
+    var result = ParseResult{ .command = undefined };
+    var i: usize = 1;
+
+    // Parse global options
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (mem.eql(u8, arg, "--config") or mem.eql(u8, arg, "-c")) {
+            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            i += 1;
+            result.config_path = args[i];
+        } else {
+            break;
+        }
+    }
+
+    if (i >= args.len) {
         return ParseError.MissingCommand;
     }
 
-    const command = args[1];
-    const rest = args[2..];
+    const command = args[i];
+    const rest = args[i + 1 ..];
 
     if (mem.eql(u8, command, "build")) {
-        return .{ .build = try parseBuildOptions(rest) };
+        result.command = .{ .build = try parseBuildOptions(rest) };
     } else if (mem.eql(u8, command, "validate")) {
-        return .{ .validate = try parseValidateOptions(rest) };
+        result.command = .{ .validate = try parseValidateOptions(rest) };
     } else if (mem.eql(u8, command, "new")) {
-        return .{ .new = try parseNewOptions(rest) };
+        result.command = .{ .new = try parseNewOptions(rest) };
     } else if (mem.eql(u8, command, "install")) {
-        return .{ .install = {} };
+        result.command = .{ .install = {} };
     } else if (mem.eql(u8, command, "build-link")) {
-        return .{ .build_link = try parseBuildLinkOptions(rest) };
+        result.command = .{ .build_link = try parseBuildLinkOptions(rest) };
     } else if (mem.eql(u8, command, "help") or
         mem.eql(u8, command, "--help") or
         mem.eql(u8, command, "-h"))
     {
-        return .{ .help = {} };
+        result.command = .{ .help = {} };
     } else {
         return ParseError.UnknownCommand;
     }
+
+    return result;
 }
 
 fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
@@ -197,37 +219,45 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
 
 test "parseArgs help" {
     const args = &[_][]const u8{ "defrag", "help" };
-    const cmd = try parseArgs(args);
-    try std.testing.expect(cmd == .help);
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .help);
+    try std.testing.expect(result.config_path == null);
 }
 
 test "parseArgs build with manifest" {
     const args = &[_][]const u8{ "defrag", "build", "--manifest", "path/to/manifest" };
-    const cmd = try parseArgs(args);
-    try std.testing.expect(cmd == .build);
-    try std.testing.expectEqualStrings("path/to/manifest", cmd.build.manifest_path);
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .build);
+    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path);
 }
 
 test "parseArgs build with positional" {
     const args = &[_][]const u8{ "defrag", "build", "path/to/manifest" };
-    const cmd = try parseArgs(args);
-    try std.testing.expect(cmd == .build);
-    try std.testing.expectEqualStrings("path/to/manifest", cmd.build.manifest_path);
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .build);
+    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path);
 }
 
 test "parseArgs build --all" {
     const args = &[_][]const u8{ "defrag", "build", "--all" };
-    const cmd = try parseArgs(args);
-    try std.testing.expect(cmd == .build);
-    try std.testing.expect(cmd.build.all);
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .build);
+    try std.testing.expect(result.command.build.all);
 }
 
 test "parseArgs new with database" {
     const args = &[_][]const u8{ "defrag", "new", "--database", "my-db", "--no-manifest" };
-    const cmd = try parseArgs(args);
-    try std.testing.expect(cmd == .new);
-    try std.testing.expectEqualStrings("my-db", cmd.new.database_name);
-    try std.testing.expect(cmd.new.no_manifest);
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .new);
+    try std.testing.expectEqualStrings("my-db", result.command.new.database_name);
+    try std.testing.expect(result.command.new.no_manifest);
+}
+
+test "parseArgs with config" {
+    const args = &[_][]const u8{ "defrag", "--config", "test/config.json", "build", "--all" };
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .build);
+    try std.testing.expectEqualStrings("test/config.json", result.config_path.?);
 }
 
 test "parseArgs missing command" {

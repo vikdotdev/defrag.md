@@ -37,11 +37,13 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
 
     // Read manifest file
     const manifest_content = fs.readFile(allocator, build_options.manifest_path) catch {
+        try log.err("Manifest file not found: {s}", .{build_options.manifest_path});
         return BuildError.ManifestNotFound;
     };
 
     // Parse manifest
     const manifest = Manifest.parse(arena, manifest_content) catch {
+        try log.err("Invalid manifest: {s}", .{build_options.manifest_path});
         return BuildError.InvalidManifest;
     };
 
@@ -70,7 +72,7 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
 
         // Append to output
         try output.appendSlice(allocator, processed.heading);
-        try output.appendSlice(allocator, "\n\n");
+        try output.appendSlice(allocator, "\n");
         if (processed.content.len > 0) {
             try output.appendSlice(allocator, processed.content);
             try output.appendSlice(allocator, "\n\n");

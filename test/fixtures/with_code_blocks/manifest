@@ -1,3 +1,7 @@
+[config]
+heading_wrapper_template = "Rule: {fragment_id}"
+
+[fragments]
 # Test manifest with code blocks
 
 | code-rule

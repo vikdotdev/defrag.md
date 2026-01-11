@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Cross-database inclusion"
 
 # Test build with cross-database includes
-LLM_RULES_DIR=test/fixtures/cross_database ./scripts/ai-rules build --manifest test/fixtures/cross_database/main/manifest --out test/tmp/build-11-cross-database.md
+./zig-out/bin/defrag --config test/config-cross-database.json build --manifest test/fixtures/cross_database/main/manifest --out test/tmp/build-11-cross-database.md
 
 # Check that output file was created
 if [ ! -f "test/tmp/build-11-cross-database.md" ]; then

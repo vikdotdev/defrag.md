@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Files without EOF newline"
 
 # Test build with no_eof_newline fixture
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules build --manifest test/fixtures/no_eof_newline/manifest --out test/tmp/build-04-no-eof-newline.md
+./zig-out/bin/defrag --config test/config.json build --manifest test/fixtures/no_eof_newline/manifest --out test/tmp/build-04-no-eof-newline.md
 
 # Check that output file was created
 if [ ! -f "test/tmp/build-04-no-eof-newline.md" ]; then

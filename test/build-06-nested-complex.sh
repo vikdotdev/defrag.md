@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 echo "Testing: Complex nested hierarchy"
 
 # Test build with complex nested fixture
-LLM_RULES_DIR=test/fixtures ./scripts/ai-rules build --manifest test/fixtures/nested_complex/manifest --out test/tmp/build-06-nested-complex.md
+./zig-out/bin/defrag --config test/config.json build --manifest test/fixtures/nested_complex/manifest --out test/tmp/build-06-nested-complex.md
 
 # Check that output file was created
 if [ ! -f "test/tmp/build-06-nested-complex.md" ]; then
