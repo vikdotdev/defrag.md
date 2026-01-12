@@ -1,15 +1,13 @@
 const std = @import("std");
+const mem = std.mem;
 const c = @cImport(@cInclude("cmark.h"));
-
-const ArenaAllocator = std.heap.ArenaAllocator;
 
 const max_heading_level = 6;
 
 /// Normalize headings in markdown content to start at target_level.
 /// Uses cmark for proper CommonMark parsing.
 /// Returns modified markdown with adjusted heading levels.
-pub fn normalizeHeadings(arena: *ArenaAllocator, content: []const u8, target_level: u8) ![]const u8 {
-    const allocator = arena.allocator();
+pub fn normalizeHeadings(allocator: mem.Allocator, content: []const u8, target_level: u8) ![]const u8 {
 
     // Parse document
     const doc = c.cmark_parse_document(content.ptr, content.len, c.CMARK_OPT_DEFAULT) orelse {
@@ -90,60 +88,60 @@ fn adjustHeadingLevels(doc: *c.cmark_node, shift: i32) void {
 }
 
 test "normalizeHeadings no change needed" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "# Heading\n\nSome text\n";
-    const result = try normalizeHeadings(&arena, content, 1);
-    try std.testing.expect(std.mem.indexOf(u8, result, "# Heading") != null);
+    const result = try normalizeHeadings(arena.allocator(), content, 1);
+    try std.testing.expect(mem.indexOf(u8, result, "# Heading") != null);
 }
 
 test "normalizeHeadings shift up" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "# Heading\n\n## Subheading\n";
-    const result = try normalizeHeadings(&arena, content, 2);
-    try std.testing.expect(std.mem.indexOf(u8, result, "## Heading") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "### Subheading") != null);
+    const result = try normalizeHeadings(arena.allocator(), content, 2);
+    try std.testing.expect(mem.indexOf(u8, result, "## Heading") != null);
+    try std.testing.expect(mem.indexOf(u8, result, "### Subheading") != null);
 }
 
 test "normalizeHeadings shift down" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "### Heading\n\n#### Subheading\n";
-    const result = try normalizeHeadings(&arena, content, 1);
-    try std.testing.expect(std.mem.indexOf(u8, result, "# Heading") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "## Subheading") != null);
+    const result = try normalizeHeadings(arena.allocator(), content, 1);
+    try std.testing.expect(mem.indexOf(u8, result, "# Heading") != null);
+    try std.testing.expect(mem.indexOf(u8, result, "## Subheading") != null);
 }
 
 test "normalizeHeadings clamp to H6" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "# Heading\n\n## Subheading\n";
-    const result = try normalizeHeadings(&arena, content, 6);
-    try std.testing.expect(std.mem.indexOf(u8, result, "###### Heading") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "###### Subheading") != null);
+    const result = try normalizeHeadings(arena.allocator(), content, 6);
+    try std.testing.expect(mem.indexOf(u8, result, "###### Heading") != null);
+    try std.testing.expect(mem.indexOf(u8, result, "###### Subheading") != null);
 }
 
 test "normalizeHeadings handles setext headings" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "Heading\n=======\n\nSubheading\n----------\n";
-    const result = try normalizeHeadings(&arena, content, 2);
+    const result = try normalizeHeadings(arena.allocator(), content, 2);
     // cmark converts setext to ATX in output
-    try std.testing.expect(std.mem.indexOf(u8, result, "## Heading") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "### Subheading") != null);
+    try std.testing.expect(mem.indexOf(u8, result, "## Heading") != null);
+    try std.testing.expect(mem.indexOf(u8, result, "### Subheading") != null);
 }
 
 test "normalizeHeadings no headings" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content = "Just some text\n\nNo headings here\n";
-    const result = try normalizeHeadings(&arena, content, 2);
+    const result = try normalizeHeadings(arena.allocator(), content, 2);
     try std.testing.expectEqualStrings(content, result);
 }

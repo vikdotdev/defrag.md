@@ -4,7 +4,6 @@ const fmt = std.fmt;
 const fs = @import("../fs.zig");
 const headings = @import("heading.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Config = @import("../config.zig").Config;
 const Manifest = @import("manifest.zig").Manifest;
 
@@ -55,29 +54,29 @@ pub const Fragment = struct {
             return parseFragmentId(raw);
         }
 
-        pub fn full(self: Id, arena: *ArenaAllocator, current_collection: Collection) ![]const u8 {
-            return fullFragmentId(self, arena, current_collection);
+        pub fn full(self: Id, allocator: mem.Allocator, current_collection: Collection) ![]const u8 {
+            return fullFragmentId(self, allocator, current_collection);
         }
     };
 
     pub fn resolve(
-        arena: *ArenaAllocator,
+        allocator: mem.Allocator,
         collection: Collection,
         id: Id,
         config: Config,
     ) ![]const u8 {
-        return resolveFragment(arena, collection, id, config);
+        return resolveFragment(allocator, collection, id, config);
     }
 
     pub fn process(
-        arena: *ArenaAllocator,
+        allocator: mem.Allocator,
         path: []const u8,
         id: Id,
         collection: Collection,
         manifest: Manifest,
         level: u8,
     ) !Fragment {
-        return processFragment(arena, path, id, collection, manifest, level);
+        return processFragment(allocator, path, id, collection, manifest, level);
     }
 };
 
@@ -96,20 +95,19 @@ fn parseFragmentId(raw: []const u8) Fragment.Id {
     };
 }
 
-fn fullFragmentId(id: Fragment.Id, arena: *ArenaAllocator, current_collection: Collection) ![]const u8 {
+fn fullFragmentId(id: Fragment.Id, allocator: mem.Allocator, current_collection: Collection) ![]const u8 {
     if (id.collection != null) {
         return id.raw;
     }
-    return fmt.allocPrint(arena.allocator(), "{s}/{s}", .{ current_collection.name(), id.name });
+    return fmt.allocPrint(allocator, "{s}/{s}", .{ current_collection.name(), id.name });
 }
 
 fn resolveFragment(
-    arena: *ArenaAllocator,
+    allocator: mem.Allocator,
     collection: Collection,
     id: Fragment.Id,
     config: Config,
 ) ![]const u8 {
-    const allocator = arena.allocator();
     const name_with_ext = try fs.ensureMdExtension(allocator, id.name);
 
     if (id.collection) |coll| {
@@ -141,26 +139,24 @@ fn resolveFragment(
 }
 
 fn processFragment(
-    arena: *ArenaAllocator,
+    allocator: mem.Allocator,
     path: []const u8,
     id: Fragment.Id,
     collection: Collection,
     manifest: Manifest,
     level: u8,
 ) !Fragment {
-    const allocator = arena.allocator();
-
     const content = fs.readFile(allocator, path) catch |err| switch (err) {
         error.FileNotFound => return Fragment.Error.FileNotFound,
         else => return Fragment.Error.ReadError,
     };
 
-    const fragment_id = try id.full(arena, collection);
+    const fragment_id = try id.full(allocator, collection);
     const heading_text = try replaceIdentifier(allocator, manifest.heading_wrapper_template, fragment_id);
     const heading = try formatHeading(allocator, heading_text, level);
 
     const content_level = @min(level + 1, 6);
-    const normalized_content = try headings.normalizeHeadings(arena, content, content_level);
+    const normalized_content = try headings.normalizeHeadings(allocator, content, content_level);
     const trimmed_content = mem.trim(u8, normalized_content, " \t\n\r");
 
     return .{
@@ -210,22 +206,24 @@ test "Fragment.Id.parse cross-collection" {
 }
 
 test "Fragment.Id.full local" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    const allocator = arena.allocator();
 
-    const collection = try Collection.init(arena.allocator(), "/path/to/my-collection");
+    const collection = try Collection.init(allocator, "/path/to/my-collection");
     const fragment_id = Fragment.Id.parse("my-fragment");
-    const full = try fragment_id.full(&arena, collection);
+    const full = try fragment_id.full(allocator, collection);
     try std.testing.expectEqualStrings("my-collection/my-fragment", full);
 }
 
 test "Fragment.Id.full cross-collection" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    const allocator = arena.allocator();
 
-    const collection = try Collection.init(arena.allocator(), "/path/to/current-collection");
+    const collection = try Collection.init(allocator, "/path/to/current-collection");
     const fragment_id = Fragment.Id.parse("other-collection/my-fragment");
-    const full = try fragment_id.full(&arena, collection);
+    const full = try fragment_id.full(allocator, collection);
     try std.testing.expectEqualStrings("other-collection/my-fragment", full);
 }
 
