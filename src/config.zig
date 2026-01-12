@@ -3,7 +3,7 @@ const fs = @import("fs.zig");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 
-const max_file_size = 1024 * 1024;
+const max_config_size = 1024 * 1024; // 1MB
 
 pub const Config = struct {
     paths: []const []const u8,
@@ -44,7 +44,7 @@ fn loadConfigFromPath(arena: *ArenaAllocator, path: []const u8) !Config {
     };
     defer file.close();
 
-    const content = try file.readToEndAlloc(allocator, max_file_size);
+    const content = try file.readToEndAlloc(allocator, max_config_size);
 
     const parsed = std.json.parseFromSlice(Config, allocator, content, .{
         .allocate = .alloc_always,
