@@ -49,7 +49,7 @@ fn createCollection(arena: *ArenaAllocator, collection_name: []const u8, no_mani
         );
         const manifest_content =
             \\[config]
-            \\heading_wrapper_template = "# Rule: {fragment_id}"
+            \\heading_wrapper_template = "{fragment_id}"
             \\
             \\[fragments]
             \\| example
