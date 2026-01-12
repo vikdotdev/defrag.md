@@ -25,7 +25,7 @@ pub const ValidateOptions = struct {
 };
 
 pub const NewOptions = struct {
-    database_name: []const u8,
+    collection_name: []const u8,
     no_manifest: bool = false,
 };
 
@@ -153,7 +153,7 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
 
 fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
     var opts = NewOptions{
-        .database_name = undefined,
+        .collection_name = undefined,
     };
     var has_name = false;
 
@@ -161,17 +161,17 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--database") or mem.eql(u8, arg, "-d")) {
+        if (mem.eql(u8, arg, "--collection") or mem.eql(u8, arg, "-c")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
-            opts.database_name = args[i];
+            opts.collection_name = args[i];
             has_name = true;
         } else if (mem.eql(u8, arg, "--no-manifest")) {
             opts.no_manifest = true;
         } else if (mem.startsWith(u8, arg, "-")) {
             return ParseError.UnknownOption;
         } else {
-            opts.database_name = arg;
+            opts.collection_name = arg;
             has_name = true;
         }
     }
@@ -242,11 +242,11 @@ test "parseArgs build --all" {
     try std.testing.expect(result.command.build.all);
 }
 
-test "parseArgs new with database" {
-    const args = &[_][]const u8{ "defrag", "new", "--database", "my-db", "--no-manifest" };
+test "parseArgs new with collection" {
+    const args = &[_][]const u8{ "defrag", "new", "--collection", "my-collection", "--no-manifest" };
     const result = try parseArgs(args);
     try std.testing.expect(result.command == .new);
-    try std.testing.expectEqualStrings("my-db", result.command.new.database_name);
+    try std.testing.expectEqualStrings("my-collection", result.command.new.collection_name);
     try std.testing.expect(result.command.new.no_manifest);
 }
 

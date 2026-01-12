@@ -30,11 +30,11 @@ pub fn run(arena: *ArenaAllocator, options: ValidateOptions, config: Config) !vo
     };
 
     const manifest_dir = std.fs.path.dirname(manifest_path) orelse ".";
-    const database_name = try getDatabaseName(allocator, manifest_dir);
+    const collection_name = try getCollectionName(allocator, manifest_dir);
     const collection = try Collection.init(allocator, manifest_dir);
 
     try log.info("Validating manifest: {s}", .{manifest_path});
-    try log.info("Database path: {s}", .{manifest_dir});
+    try log.info("Collection path: {s}", .{manifest_dir});
     try log.info("", .{});
 
     var total: usize = 0;
@@ -63,14 +63,14 @@ pub fn run(arena: *ArenaAllocator, options: ValidateOptions, config: Config) !vo
     try log.info("", .{});
 
     if (missing == 0) {
-        try log.info("✓ Database '{s}' is valid!", .{database_name});
+        try log.info("✓ Collection '{s}' is valid!", .{collection_name});
     } else {
-        try log.info("✗ Database '{s}' has {d} missing rule(s)", .{ database_name, missing });
+        try log.info("✗ Collection '{s}' has {d} missing fragment(s)", .{ collection_name, missing });
         return ValidateError.ValidationFailed;
     }
 }
 
-fn getDatabaseName(allocator: std.mem.Allocator, manifest_dir: []const u8) ![]const u8 {
+fn getCollectionName(allocator: std.mem.Allocator, manifest_dir: []const u8) ![]const u8 {
     if (!std.mem.eql(u8, manifest_dir, ".")) {
         return std.fs.path.basename(manifest_dir);
     }
