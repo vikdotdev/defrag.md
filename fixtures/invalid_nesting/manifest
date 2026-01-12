@@ -1,5 +1,5 @@
 [config]
-heading_wrapper_template = "Rule: {fragment_id}"
+heading_wrapper_template = "{fragment_id}"
 
 [fragments]
 # Test manifest with invalid nesting (level 3 follows level 1)

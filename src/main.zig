@@ -146,8 +146,8 @@ test "build: basic - simple manifest with 2 rules" {
 
     try result.expectSuccess();
     try result.expectStderrContains("Built:");
-    try t.expectFileContains(allocator, output, "# Rule: basic/rule1");
-    try t.expectFileContains(allocator, output, "# Rule: basic/rule2");
+    try t.expectFileContains(allocator, output, "# basic/rule1");
+    try t.expectFileContains(allocator, output, "# basic/rule2");
 }
 
 test "build: comment handling - manifest comments ignored" {
@@ -200,9 +200,9 @@ test "build: nested 2 levels" {
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "# Rule: nested/parent");
-    try t.expectFileContains(allocator, output, "## Rule: nested/child1");
-    try t.expectFileContains(allocator, output, "## Rule: nested/child2");
+    try t.expectFileContains(allocator, output, "# nested/parent");
+    try t.expectFileContains(allocator, output, "## nested/child1");
+    try t.expectFileContains(allocator, output, "## nested/child2");
 }
 
 test "build: nested complex 3 levels" {
@@ -215,9 +215,9 @@ test "build: nested complex 3 levels" {
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "# Rule:");
-    try t.expectFileContains(allocator, output, "## Rule:");
-    try t.expectFileContains(allocator, output, "### Rule:");
+    try t.expectFileContains(allocator, output, "# nested_complex/");
+    try t.expectFileContains(allocator, output, "## nested_complex/");
+    try t.expectFileContains(allocator, output, "### nested_complex/");
 }
 
 test "build: missing manifest error" {
@@ -244,7 +244,7 @@ test "build: missing rule warns but continues" {
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "Rule: missing_rule/existing-rule");
+    try t.expectFileContains(allocator, output, "missing_rule/existing-rule");
 }
 
 test "build: invalid nesting auto-corrects" {
@@ -257,8 +257,8 @@ test "build: invalid nesting auto-corrects" {
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "Rule: invalid_nesting/parent");
-    try t.expectFileContains(allocator, output, "Rule: invalid_nesting/deep-child");
+    try t.expectFileContains(allocator, output, "invalid_nesting/parent");
+    try t.expectFileContains(allocator, output, "invalid_nesting/deep-child");
 }
 
 test "build: too many levels error" {
@@ -288,8 +288,8 @@ test "build: cross-collection inclusion" {
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "Rule: main/local-rule");
-    try t.expectFileContains(allocator, output, "Rule: shared/common-rule");
+    try t.expectFileContains(allocator, output, "main/local-rule");
+    try t.expectFileContains(allocator, output, "shared/common-rule");
 }
 
 test "build: nesting warning" {

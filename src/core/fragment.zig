@@ -257,11 +257,11 @@ test "replaceIdentifier basic" {
     try std.testing.expectEqualStrings("my-collection/my-fragment", result);
 }
 
-test "replaceIdentifier with prefix" {
+test "replaceIdentifier preserves surrounding text" {
     const allocator = std.testing.allocator;
-    const result = try replaceIdentifier(allocator, "Rule: {fragment_id}", "db/rule");
+    const result = try replaceIdentifier(allocator, "Title: {fragment_id} (docs)", "db/rule");
     defer allocator.free(result);
-    try std.testing.expectEqualStrings("Rule: db/rule", result);
+    try std.testing.expectEqualStrings("Title: db/rule (docs)", result);
 }
 
 test "replaceIdentifier no variable" {
