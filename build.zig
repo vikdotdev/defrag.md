@@ -93,6 +93,10 @@ pub fn build(b: *std.Build) void {
         .root_module = test_module,
     });
     const run_tests = b.addRunArtifact(exe_tests);
+
+    // Ensure executable is built before running tests (for subprocess tests)
+    run_tests.step.dependOn(b.getInstallStep());
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_tests.step);
 }

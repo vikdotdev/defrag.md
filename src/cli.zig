@@ -10,7 +10,6 @@ pub const Command = union(enum) {
     build: BuildOptions,
     validate: ValidateOptions,
     new: NewOptions,
-    install: void,
     build_link: BuildLinkOptions,
     help: void,
 };
@@ -71,8 +70,6 @@ pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
         result.command = .{ .validate = try parseValidateOptions(rest) };
     } else if (mem.eql(u8, command, "new")) {
         result.command = .{ .new = try parseNewOptions(rest) };
-    } else if (mem.eql(u8, command, "install")) {
-        result.command = .{ .install = {} };
     } else if (mem.eql(u8, command, "build-link")) {
         result.command = .{ .build_link = try parseBuildLinkOptions(rest) };
     } else if (mem.eql(u8, command, "help") or

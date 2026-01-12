@@ -2,17 +2,8 @@ const std = @import("std");
 
 const File = std.fs.File;
 
-var stdout_buf: [4096]u8 = undefined;
 var stderr_buf: [4096]u8 = undefined;
-var stdout_writer: ?File.Writer = null;
 var stderr_writer: ?File.Writer = null;
-
-fn getStdout() *std.Io.Writer {
-    if (stdout_writer == null) {
-        stdout_writer = File.stdout().writer(&stdout_buf);
-    }
-    return &stdout_writer.?.interface;
-}
 
 fn getStderr() *std.Io.Writer {
     if (stderr_writer == null) {
@@ -22,7 +13,7 @@ fn getStderr() *std.Io.Writer {
 }
 
 pub fn info(comptime format: []const u8, args: anytype) !void {
-    const writer = getStdout();
+    const writer = getStderr();
     try writer.print(format ++ "\n", args);
     try writer.flush();
 }
