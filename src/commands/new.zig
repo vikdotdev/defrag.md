@@ -1,8 +1,8 @@
 const std = @import("std");
+const mem = std.mem;
 const fs = @import("../fs.zig");
 const log = @import("../log.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Config = @import("../config.zig").Config;
 const NewOptions = @import("../cli.zig").NewOptions;
 
@@ -11,22 +11,20 @@ pub const NewError = error{
     CreateFailed,
 };
 
-pub fn run(arena: *ArenaAllocator, options: NewOptions) !void {
+pub fn run(allocator: mem.Allocator, options: NewOptions) !void {
     const collection_name = options.collection_name;
 
     // Check if collection already exists
     std.fs.cwd().access(collection_name, .{}) catch {
         // Doesn't exist, good
-        return createCollection(arena, collection_name, options.no_manifest);
+        return createCollection(allocator, collection_name, options.no_manifest);
     };
 
     try log.err("Collection '{s}' already exists", .{collection_name});
     return NewError.CollectionExists;
 }
 
-fn createCollection(arena: *ArenaAllocator, collection_name: []const u8, no_manifest: bool) !void {
-    const allocator = arena.allocator();
-
+fn createCollection(allocator: mem.Allocator, collection_name: []const u8, no_manifest: bool) !void {
     try log.info("Creating new collection: {s}", .{collection_name});
 
     // Create fragments directory

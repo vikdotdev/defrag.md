@@ -1,7 +1,6 @@
 const std = @import("std");
+const mem = std.mem;
 const fs = @import("fs.zig");
-
-const ArenaAllocator = std.heap.ArenaAllocator;
 
 const max_config_size = 1024 * 1024; // 1MB
 
@@ -20,22 +19,21 @@ pub const Config = struct {
         HomeNotSet,
     };
 
-    pub fn load(arena: *ArenaAllocator) !Config {
-        return loadConfig(arena);
+    pub fn load(allocator: mem.Allocator) !Config {
+        return loadConfig(allocator);
     }
 
-    pub fn loadFromPath(arena: *ArenaAllocator, path: []const u8) !Config {
-        return loadConfigFromPath(arena, path);
+    pub fn loadFromPath(allocator: mem.Allocator, path: []const u8) !Config {
+        return loadConfigFromPath(allocator, path);
     }
 };
 
-fn loadConfig(arena: *ArenaAllocator) !Config {
-    const config_path = try getConfigPath(arena);
-    return loadConfigFromPath(arena, config_path);
+fn loadConfig(allocator: mem.Allocator) !Config {
+    const config_path = try getConfigPath(allocator);
+    return loadConfigFromPath(allocator, config_path);
 }
 
-fn loadConfigFromPath(arena: *ArenaAllocator, path: []const u8) !Config {
-    const allocator = arena.allocator();
+fn loadConfigFromPath(allocator: mem.Allocator, path: []const u8) !Config {
     const expanded_path = fs.expandTilde(allocator, path) catch return Config.Error.HomeNotSet;
 
     const file = std.fs.cwd().openFile(expanded_path, .{}) catch |err| {
@@ -60,9 +58,7 @@ fn loadConfigFromPath(arena: *ArenaAllocator, path: []const u8) !Config {
     };
 }
 
-fn getConfigPath(arena: *ArenaAllocator) ![]const u8 {
-    const allocator = arena.allocator();
-
+fn getConfigPath(allocator: mem.Allocator) ![]const u8 {
     if (std.posix.getenv("XDG_CONFIG_HOME")) |base| {
         return std.fmt.allocPrint(allocator, "{s}/{s}/{s}", .{ base, Config.app_name, Config.config_filename });
     }

@@ -1,8 +1,8 @@
 const std = @import("std");
+const mem = std.mem;
 const fs = @import("../fs.zig");
 const log = @import("../log.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Config = @import("../config.zig").Config;
 const Manifest = @import("../core/manifest.zig").Manifest;
 const Collection = @import("../core/fragment.zig").Collection;
@@ -15,8 +15,7 @@ pub const ValidateError = error{
     ValidationFailed,
 };
 
-pub fn run(arena: *ArenaAllocator, options: ValidateOptions, config: Config) !void {
-    const allocator = arena.allocator();
+pub fn run(allocator: mem.Allocator, options: ValidateOptions, config: Config) !void {
     const manifest_path = options.manifest_path;
 
     const manifest_content = fs.readFile(allocator, manifest_path) catch {
@@ -24,7 +23,7 @@ pub fn run(arena: *ArenaAllocator, options: ValidateOptions, config: Config) !vo
         return ValidateError.ManifestNotFound;
     };
 
-    const manifest = Manifest.parse(arena, manifest_content) catch {
+    const manifest = Manifest.parse(allocator, manifest_content) catch {
         try log.err("Invalid manifest: {s}", .{manifest_path});
         return ValidateError.InvalidManifest;
     };
@@ -46,7 +45,7 @@ pub fn run(arena: *ArenaAllocator, options: ValidateOptions, config: Config) !vo
         const fragment_id = Fragment.Id.parse(entry.name);
         const name_with_ext = try fs.ensureMdExtension(allocator, entry.name);
 
-        if (Fragment.resolve(arena, collection, fragment_id, config)) |_| {
+        if (Fragment.resolve(allocator, collection, fragment_id, config)) |_| {
             try log.info("✓ {s} (level {d})", .{ name_with_ext, entry.level });
             valid += 1;
         } else |_| {

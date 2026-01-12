@@ -3,7 +3,6 @@ const mem = std.mem;
 const fs = @import("../fs.zig");
 const log = @import("../log.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
 const Config = @import("../config.zig").Config;
 const Manifest = @import("../core/manifest.zig").Manifest;
@@ -19,18 +18,16 @@ pub const BuildError = error{
 };
 
 /// Execute the build command
-pub fn run(arena: *ArenaAllocator, options: BuildOptions, config: Config) !void {
+pub fn run(allocator: mem.Allocator, options: BuildOptions, config: Config) !void {
     if (options.all) {
-        try buildAllManifests(arena, config);
+        try buildAllManifests(allocator, config);
     } else {
-        try buildManifest(arena, options, config);
+        try buildManifest(allocator, options, config);
     }
 }
 
 /// Build a single manifest file
-fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Config) !void {
-    const allocator = arena.allocator();
-
+fn buildManifest(allocator: mem.Allocator, build_options: BuildOptions, config: Config) !void {
     // Determine collection directory from manifest path
     const manifest_dir = std.fs.path.dirname(build_options.manifest_path) orelse ".";
     const collection = try Collection.init(allocator, manifest_dir);
@@ -42,7 +39,7 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
     };
 
     // Parse manifest
-    const manifest = Manifest.parse(arena, manifest_content) catch {
+    const manifest = Manifest.parse(allocator, manifest_content) catch {
         try log.err("Invalid manifest: {s}", .{build_options.manifest_path});
         return BuildError.InvalidManifest;
     };
@@ -53,13 +50,13 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
     for (manifest.fragments) |entry| {
         const fragment_id = Fragment.Id.parse(entry.name);
 
-        const frag_path = Fragment.resolve(arena, collection, fragment_id, config) catch {
+        const frag_path = Fragment.resolve(allocator, collection, fragment_id, config) catch {
             try log.warn("Fragment not found: {s}", .{entry.name});
             continue;
         };
 
         const processed = Fragment.process(
-            arena,
+            allocator,
             frag_path,
             fragment_id,
             collection,
@@ -99,9 +96,7 @@ fn buildManifest(arena: *ArenaAllocator, build_options: BuildOptions, config: Co
 }
 
 /// Build all *.manifest files in current directory
-fn buildAllManifests(arena: *ArenaAllocator, config: Config) !void {
-    const allocator = arena.allocator();
-
+fn buildAllManifests(allocator: mem.Allocator, config: Config) !void {
     var buf: [std.fs.max_path_bytes]u8 = undefined;
     const cwd = std.fs.cwd().realpath(".", &buf) catch ".";
     try log.info("Building {s}/*{s}", .{ cwd, Config.manifest_ext });
@@ -117,7 +112,7 @@ fn buildAllManifests(arena: *ArenaAllocator, config: Config) !void {
         if (!mem.endsWith(u8, entry.name, Config.manifest_ext)) continue;
 
         const manifest_path = try allocator.dupe(u8, entry.name);
-        buildManifest(arena, .{ .manifest_path = manifest_path }, config) catch |err| {
+        buildManifest(allocator, .{ .manifest_path = manifest_path }, config) catch |err| {
             try log.warn("Failed to build {s}: {}", .{ entry.name, err });
             continue;
         };

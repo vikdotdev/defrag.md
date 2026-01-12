@@ -1,9 +1,9 @@
 const std = @import("std");
+const mem = std.mem;
 const fs = @import("../fs.zig");
 const log = @import("../log.zig");
 const build_cmd = @import("build.zig");
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const Config = @import("../config.zig").Config;
 const BuildOptions = @import("../cli.zig").BuildOptions;
 const BuildLinkOptions = @import("../cli.zig").BuildLinkOptions;
@@ -13,14 +13,12 @@ pub const BuildLinkError = error{
     LinkFailed,
 };
 
-pub fn run(arena: *ArenaAllocator, options: BuildLinkOptions, config: Config) !void {
-    const allocator = arena.allocator();
-
+pub fn run(allocator: mem.Allocator, options: BuildLinkOptions, config: Config) !void {
     // Build the manifest first
     const build_options = BuildOptions{
         .manifest_path = options.manifest_path,
     };
-    build_cmd.run(arena, build_options, config) catch {
+    build_cmd.run(allocator, build_options, config) catch {
         return BuildLinkError.BuildFailed;
     };
 

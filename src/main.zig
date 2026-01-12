@@ -29,10 +29,12 @@ pub fn main() !void {
         return;
     }
 
+    const allocator = arena.allocator();
+
     const config = if (parse_result.config_path) |path|
-        Config.loadFromPath(&arena, path)
+        Config.loadFromPath(allocator, path)
     else
-        Config.load(&arena);
+        Config.load(allocator);
 
     const loaded_config = config catch |load_err| {
         try log.err("Failed to load config: {}", .{load_err});
@@ -41,22 +43,22 @@ pub fn main() !void {
 
     switch (parse_result.command) {
         .build => |opts| {
-            build_cmd.run(&arena, opts, loaded_config) catch {
+            build_cmd.run(allocator, opts, loaded_config) catch {
                 std.process.exit(1);
             };
         },
         .validate => |opts| {
-            validate_cmd.run(&arena, opts, loaded_config) catch {
+            validate_cmd.run(allocator, opts, loaded_config) catch {
                 std.process.exit(1);
             };
         },
         .new => |opts| {
-            new_cmd.run(&arena, opts) catch {
+            new_cmd.run(allocator, opts) catch {
                 std.process.exit(1);
             };
         },
         .build_link => |opts| {
-            build_link_cmd.run(&arena, opts, loaded_config) catch {
+            build_link_cmd.run(allocator, opts, loaded_config) catch {
                 std.process.exit(1);
             };
         },

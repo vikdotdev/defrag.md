@@ -1,6 +1,6 @@
 const std = @import("std");
+const mem = std.mem;
 
-const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
 
 const section_config = "[config]";
@@ -34,13 +34,12 @@ pub const Manifest = struct {
         };
     }
 
-    pub fn parse(arena: *ArenaAllocator, content: []const u8) !Manifest {
-        return parseManifest(arena, content);
+    pub fn parse(allocator: mem.Allocator, content: []const u8) !Manifest {
+        return parseManifest(allocator, content);
     }
 };
 
-fn parseManifest(arena: *ArenaAllocator, content: []const u8) !Manifest {
-    const allocator = arena.allocator();
+fn parseManifest(allocator: mem.Allocator, content: []const u8) !Manifest {
 
     var manifest = Manifest.init();
     var fragments: ArrayList(Manifest.FragmentEntry) = .empty;
@@ -166,7 +165,7 @@ test "parseConfigValue without quotes" {
 }
 
 test "Manifest.parse simple" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
@@ -178,7 +177,7 @@ test "Manifest.parse simple" {
         \\| setup
     ;
 
-    const manifest = try Manifest.parse(&arena, content);
+    const manifest = try Manifest.parse(arena.allocator(), content);
 
     try std.testing.expectEqualStrings("{fragment_id}", manifest.heading_wrapper_template);
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
@@ -187,7 +186,7 @@ test "Manifest.parse simple" {
 }
 
 test "Manifest.parse nested fragments" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
@@ -198,7 +197,7 @@ test "Manifest.parse nested fragments" {
         \\| sibling
     ;
 
-    const manifest = try Manifest.parse(&arena, content);
+    const manifest = try Manifest.parse(arena.allocator(), content);
 
     try std.testing.expectEqual(@as(usize, 4), manifest.fragments.len);
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
@@ -208,7 +207,7 @@ test "Manifest.parse nested fragments" {
 }
 
 test "Manifest.parse with comments" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
@@ -219,14 +218,14 @@ test "Manifest.parse with comments" {
         \\| setup
     ;
 
-    const manifest = try Manifest.parse(&arena, content);
+    const manifest = try Manifest.parse(arena.allocator(), content);
 
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
     try std.testing.expectEqualStrings("intro", manifest.fragments[0].name);
 }
 
 test "Manifest.parse auto-correct invalid nesting" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
@@ -235,14 +234,14 @@ test "Manifest.parse auto-correct invalid nesting" {
         \\||| level3_after_1
     ;
 
-    const manifest = try Manifest.parse(&arena, content);
+    const manifest = try Manifest.parse(arena.allocator(), content);
 
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
     try std.testing.expectEqual(@as(u8, 2), manifest.fragments[1].level);
 }
 
 test "Manifest.parse missing fragments section" {
-    var arena = ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
     const content =
@@ -250,6 +249,6 @@ test "Manifest.parse missing fragments section" {
         \\title = "{name}"
     ;
 
-    const result = Manifest.parse(&arena, content);
+    const result = Manifest.parse(arena.allocator(), content);
     try std.testing.expectError(Manifest.Error.MissingFragmentsSection, result);
 }
