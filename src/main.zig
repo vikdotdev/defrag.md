@@ -55,9 +55,6 @@ pub fn main() !void {
                 std.process.exit(1);
             };
         },
-        .install => {
-            try log.info("install not yet implemented", .{});
-        },
         .build_link => |opts| {
             build_link_cmd.run(&arena, opts, loaded_config) catch {
                 std.process.exit(1);
@@ -81,7 +78,6 @@ fn printUsage() !void {
         \\    build       Build documentation from a manifest
         \\    validate    Validate a manifest
         \\    new         Create a new collection
-        \\    install     Install defrag to your system
         \\    build-link  Build and symlink output
         \\    help        Show this help message
         \\
@@ -118,6 +114,7 @@ fn printError(parse_err: cli.ParseError) !void {
 
 test {
     _ = @import("config.zig");
+    _ = @import("testing.zig");
     _ = cli;
     _ = log;
     _ = build_cmd;
@@ -128,4 +125,316 @@ test {
     _ = manifest;
     _ = heading;
     _ = fragment;
+}
+
+// ============================================================================
+// Integration Tests
+// ============================================================================
+
+const t = @import("testing.zig");
+
+// Build command tests
+
+test "build: basic - simple manifest with 2 rules" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-basic.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/basic/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try result.expectStderrContains("Built:");
+    try t.expectFileContains(allocator, output, "# Rule: basic/rule1");
+    try t.expectFileContains(allocator, output, "# Rule: basic/rule2");
+}
+
+test "build: comment handling - manifest comments ignored" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-comments.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/basic/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileNotContains(allocator, output, "commented-rule");
+}
+
+test "build: code blocks preserved" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-code-blocks.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/with_code_blocks/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "```");
+    try t.expectFileContains(allocator, output, "def hello():");
+}
+
+test "build: no EOF newline handled" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-no-eof.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/no_eof_newline/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileExists(output);
+}
+
+test "build: nested 2 levels" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-nested.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/nested/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "# Rule: nested/parent");
+    try t.expectFileContains(allocator, output, "## Rule: nested/child1");
+    try t.expectFileContains(allocator, output, "## Rule: nested/child2");
+}
+
+test "build: nested complex 3 levels" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-nested-complex.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/nested_complex/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "# Rule:");
+    try t.expectFileContains(allocator, output, "## Rule:");
+    try t.expectFileContains(allocator, output, "### Rule:");
+}
+
+test "build: missing manifest error" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-missing-manifest.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/nonexistent/manifest", output);
+    defer result.deinit();
+
+    try result.expectFailure();
+    try result.expectStderrContains("Manifest file not found");
+    try t.expectFileNotExists(output);
+}
+
+test "build: missing rule warns but continues" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-missing-rule.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/missing_rule/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "Rule: missing_rule/existing-rule");
+}
+
+test "build: invalid nesting auto-corrects" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-invalid-nesting.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/invalid_nesting/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "Rule: invalid_nesting/parent");
+    try t.expectFileContains(allocator, output, "Rule: invalid_nesting/deep-child");
+}
+
+test "build: too many levels error" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-too-many-levels.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/too_many_levels/manifest", output);
+    defer result.deinit();
+
+    try result.expectFailure();
+}
+
+test "build: cross-database inclusion" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-cross-db.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.buildWithConfig(
+        allocator,
+        "fixtures/cross_database/config.json",
+        "fixtures/cross_database/main/manifest",
+        output,
+    );
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileContains(allocator, output, "Rule: main/local-rule");
+    try t.expectFileContains(allocator, output, "Rule: shared/common-rule");
+}
+
+test "build: nesting warning" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-nesting-warning.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/nesting_warning/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileExists(output);
+}
+
+test "build: multiple level jumps" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "e2e-build-multi-jump.md");
+    defer allocator.free(output);
+    defer t.cleanup(output);
+
+    var result = try t.build(allocator, "fixtures/multiple_level_jumps/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileExists(output);
+}
+
+test "build: auto-create build dir" {
+    const allocator = std.testing.allocator;
+    const output = try t.tmpPath(allocator, "auto-create-subdir/output.md");
+    defer allocator.free(output);
+    defer t.cleanupDir("zig-out/defragtest/auto-create-subdir");
+
+    var result = try t.build(allocator, "fixtures/basic/manifest", output);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectFileExists(output);
+}
+
+// Validate command tests
+
+test "validate: basic - valid manifest passes" {
+    const allocator = std.testing.allocator;
+
+    var result = try t.validate(allocator, "fixtures/basic/manifest");
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try result.expectStderrContains("is valid!");
+}
+
+test "validate: missing manifest error" {
+    const allocator = std.testing.allocator;
+
+    var result = try t.validate(allocator, "fixtures/nonexistent/manifest");
+    defer result.deinit();
+
+    try result.expectFailure();
+}
+
+test "validate: missing rule reports error" {
+    const allocator = std.testing.allocator;
+
+    var result = try t.validate(allocator, "fixtures/missing_rule/manifest");
+    defer result.deinit();
+
+    try result.expectFailure();
+}
+
+test "validate: nested fragments" {
+    const allocator = std.testing.allocator;
+
+    var result = try t.validate(allocator, "fixtures/invalid_nesting/manifest");
+    defer result.deinit();
+
+    try result.expectSuccess();
+}
+
+// New command tests
+
+test "new: basic creation" {
+    const allocator = std.testing.allocator;
+    const db_path = try t.tmpPath(allocator, "test-new-db");
+    defer allocator.free(db_path);
+    defer t.cleanupDir(db_path);
+
+    var result = try t.new(allocator, db_path);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectDirExists(db_path);
+
+    const fragments_dir = try std.fs.path.join(allocator, &.{ db_path, "fragments" });
+    defer allocator.free(fragments_dir);
+    try t.expectDirExists(fragments_dir);
+
+    const manifest_path = try std.fs.path.join(allocator, &.{ db_path, "default.manifest" });
+    defer allocator.free(manifest_path);
+    try t.expectFileExists(manifest_path);
+
+    const example_path = try std.fs.path.join(allocator, &.{ fragments_dir, "example.md" });
+    defer allocator.free(example_path);
+    try t.expectFileExists(example_path);
+}
+
+test "new: missing database name error" {
+    const allocator = std.testing.allocator;
+
+    var result = try t.runDefrag(allocator, &.{"new"});
+    defer result.deinit();
+
+    try result.expectFailure();
+}
+
+test "new: database exists error" {
+    const allocator = std.testing.allocator;
+    const db_path = try t.tmpPath(allocator, "test-exists-db");
+    defer allocator.free(db_path);
+
+    // Create the directory first
+    try std.fs.cwd().makePath(db_path);
+    defer t.cleanupDir(db_path);
+
+    var result = try t.new(allocator, db_path);
+    defer result.deinit();
+
+    try result.expectFailure();
+}
+
+test "new: no-manifest option" {
+    const allocator = std.testing.allocator;
+    const db_path = try t.tmpPath(allocator, "test-no-manifest-db");
+    defer allocator.free(db_path);
+    defer t.cleanupDir(db_path);
+
+    var result = try t.newNoManifest(allocator, db_path);
+    defer result.deinit();
+
+    try result.expectSuccess();
+    try t.expectDirExists(db_path);
+
+    // Should NOT have default manifest when no_manifest is true
+    const manifest_path = try std.fs.path.join(allocator, &.{ db_path, "default.manifest" });
+    defer allocator.free(manifest_path);
+    try t.expectFileNotExists(manifest_path);
 }
