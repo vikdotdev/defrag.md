@@ -281,15 +281,15 @@ test "build: cross-collection inclusion" {
 
     var result = try t.buildWithConfig(
         allocator,
-        "fixtures/cross_database/config.json",
-        "fixtures/cross_database/main/manifest",
+        "fixtures/config.json",
+        "fixtures/collection_inclusion/manifest",
         output,
     );
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectFileContains(allocator, output, "main/local-rule");
-    try t.expectFileContains(allocator, output, "shared/common-rule");
+    try t.expectFileContains(allocator, output, "collection_inclusion/local-rule");
+    try t.expectFileContains(allocator, output, "basic/rule1");
 }
 
 test "build: nesting warning" {

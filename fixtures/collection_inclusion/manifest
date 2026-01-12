@@ -2,8 +2,8 @@
 heading_wrapper_template = "{fragment_id}"
 
 [fragments]
-# Test manifest with cross-database includes
+# Test cross-collection fragment inclusion
 | local-rule
-| shared/common-rule
-|| shared/nested-shared
+| basic/rule1
+|| basic/rule2
 | another-local
