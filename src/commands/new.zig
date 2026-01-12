@@ -7,33 +7,33 @@ const Config = @import("../config.zig").Config;
 const NewOptions = @import("../cli.zig").NewOptions;
 
 pub const NewError = error{
-    DatabaseExists,
+    CollectionExists,
     CreateFailed,
 };
 
 pub fn run(arena: *ArenaAllocator, options: NewOptions) !void {
-    const database_name = options.database_name;
+    const collection_name = options.collection_name;
 
-    // Check if database already exists
-    std.fs.cwd().access(database_name, .{}) catch {
+    // Check if collection already exists
+    std.fs.cwd().access(collection_name, .{}) catch {
         // Doesn't exist, good
-        return createDatabase(arena, database_name, options.no_manifest);
+        return createCollection(arena, collection_name, options.no_manifest);
     };
 
-    try log.err("Database '{s}' already exists", .{database_name});
-    return NewError.DatabaseExists;
+    try log.err("Collection '{s}' already exists", .{collection_name});
+    return NewError.CollectionExists;
 }
 
-fn createDatabase(arena: *ArenaAllocator, database_name: []const u8, no_manifest: bool) !void {
+fn createCollection(arena: *ArenaAllocator, collection_name: []const u8, no_manifest: bool) !void {
     const allocator = arena.allocator();
 
-    try log.info("Creating new database: {s}", .{database_name});
+    try log.info("Creating new collection: {s}", .{collection_name});
 
     // Create fragments directory
     const fragments_path = try std.fmt.allocPrint(
         allocator,
         "{s}/{s}",
-        .{ database_name, Config.fragments_dir },
+        .{ collection_name, Config.fragments_dir },
     );
     std.fs.cwd().makePath(fragments_path) catch {
         try log.err("Failed to create directory: {s}", .{fragments_path});
@@ -45,7 +45,7 @@ fn createDatabase(arena: *ArenaAllocator, database_name: []const u8, no_manifest
         const manifest_path = try std.fmt.allocPrint(
             allocator,
             "{s}/default{s}",
-            .{ database_name, Config.manifest_ext },
+            .{ collection_name, Config.manifest_ext },
         );
         const manifest_content =
             \\[config]
@@ -83,9 +83,9 @@ fn createDatabase(arena: *ArenaAllocator, database_name: []const u8, no_manifest
     try log.info("", .{});
     try log.info("Next steps:", .{});
     if (!no_manifest) {
-        try log.info("  1. Edit {s}/default{s}", .{ database_name, Config.manifest_ext });
+        try log.info("  1. Edit {s}/default{s}", .{ collection_name, Config.manifest_ext });
         try log.info("  2. Add fragments to {s}/", .{fragments_path});
-        try log.info("  3. Build with: defrag build {s}/default{s}", .{ database_name, Config.manifest_ext });
+        try log.info("  3. Build with: defrag build {s}/default{s}", .{ collection_name, Config.manifest_ext });
     } else {
         try log.info("  1. Add fragments to {s}/", .{fragments_path});
         try log.info("  2. Create a manifest when ready", .{});

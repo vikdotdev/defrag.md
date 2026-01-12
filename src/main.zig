@@ -273,7 +273,7 @@ test "build: too many levels error" {
     try result.expectFailure();
 }
 
-test "build: cross-database inclusion" {
+test "build: cross-collection inclusion" {
     const allocator = std.testing.allocator;
     const output = try t.tmpPath(allocator, "e2e-build-cross-db.md");
     defer allocator.free(output);
@@ -397,7 +397,7 @@ test "new: basic creation" {
     try t.expectFileExists(example_path);
 }
 
-test "new: missing database name error" {
+test "new: missing collection name error" {
     const allocator = std.testing.allocator;
 
     var result = try t.runDefrag(allocator, &.{"new"});
@@ -406,7 +406,7 @@ test "new: missing database name error" {
     try result.expectFailure();
 }
 
-test "new: database exists error" {
+test "new: collection exists error" {
     const allocator = std.testing.allocator;
     const db_path = try t.tmpPath(allocator, "test-exists-db");
     defer allocator.free(db_path);
