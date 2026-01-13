@@ -99,7 +99,7 @@ pub fn build(allocator: Allocator, manifest: []const u8, output: []const u8) !Ru
 
 /// Run defrag build with config
 pub fn buildWithConfig(allocator: Allocator, config: []const u8, manifest: []const u8, output: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "--config", config, "build", "--manifest", manifest, "--out", output });
+    return runDefrag(allocator, &.{ "build", "--manifest", manifest, "--out", output, "--config", config });
 }
 
 /// Run defrag validate command

@@ -71,10 +71,7 @@ fn printUsage() !void {
         \\defrag - Build and manage AI instruction rulesets
         \\
         \\Usage:
-        \\    defrag [--config <path>] <command> [options]
-        \\
-        \\Global Options:
-        \\    --config, -c  Path to config file
+        \\    defrag <command> [options]
         \\
         \\Commands:
         \\    build       Build documentation from a manifest
@@ -86,8 +83,7 @@ fn printUsage() !void {
         \\Examples:
         \\    defrag build path/to/manifest
         \\    defrag build --manifest path/to/manifest --out output.md
-        \\    defrag build --all
-        \\    defrag --config test/config.json build --all
+        \\    defrag build --all --config custom/config.json
         \\    defrag new my-collection
         \\
         \\Version:
