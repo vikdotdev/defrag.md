@@ -1,206 +1,173 @@
-# AI Ruleset Manager
+# `defrag.md`
 
-A template repository for managing reusable rule fragments (plain `*.md` files) that can be composed into comprehensive LLM instruction documentation. Perfect for individuals who want to manage their LLM instructions with `git` and compose specific rulesets from personal rule databases.
+/diːˈfræɡmənd/ — *defragment* your markdown.
 
-## Problem
+A tool for managing reusable markdown fragments that can be composed into larger documents. Useful for maintaining personal documentation, LLM instruction sets, or any content you want to mix and match across projects.
+
+## Use case: managment of LLM intrstructions
+
 Often projects have their own `*.md` rule/context files that provide LLMs with context about the project (architecture/design/styling/etc). This leaves no place for user-defined instructions that don't belong in the project (user-specific workflows/preferences/etc).
 
 _A way_ out of this problem is to have a git-ignored `*.local.md` file that contains such user preferences. Keeping such ignored files outside of version control can get messy, especially if user wishes to carry their LLM instructions across multiple machines.
 
-## Solution
-Split LLM rule/context file into individual `*.md` rule files and build specific context file for specific project/LLM tool. Here's an example of what a repository could look like with this template:
+### Solution
+
+Split LLM rule/context file into individual `*.md` fragment files and build specific context file for specific project/LLM tool. Here's an example of what a repository could look like:
+
 ```
-my-ai-ruleset/
-├── scripts/
-│   ├── ai-rules            # Main CLI tool, copied from the template
-│   └── test                # Test runner, copied from the template
-├── rules/
-│   ├── ruby                # Database of specific user rules for Ruby
-│   ├── rails               # Database of specific user rules for Rails
-│   └── my_rails_project    # Database of specific user project rules
-├── build/
-│   └── my_rails_project.md # Stores compiled artifacts (in case of using symlinks)
-└── test/                   # Comprehensive test suite
-    ├── fixtures/           # Test data
-    └── *.sh                # Test scripts, automatically invoked by scripts/test
+my-ai-rulesets/
+├── git/                   # Shared git instructions
+│   └── fragments/
+│       └── *.md
+├── ruby/                  # Shared Ruby instructions
+│   └── fragments/
+│       └── *.md
+├── rails/                 # Shared Rails instructions
+│   └── fragments/
+│       └── *.md
+├── my_rails_project/      # Project-specific instrutions
+│   ├── fragments/
+│   │   └── *.md
+│   └── default.manifest   # References git/, ruby/, rails/, and local fragments
+└── another_rails_project/ # Another project reusing same/similar fragments
+    ├── fragments/
+    │   └── *.md
+    └── default.manifest
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-1. **Use this template**: Click "Use this template" on GitHub to create your own repository
-2. **Clone your repository**: Clone your repository to your local machine
-2. **Install the CLI**:
-   ```bash
-   ./scripts/ai-rules install # Creates `ai-rules` CLI command at your PATH
-   ```
-   
-   Or as custom binary command:
-   ```bash
-   ./scripts/ai-rules install --bin-name <binary command name of your choice>
-   ```
-3. **Create your first rule database**:
-   ```bash
-   ai-rules new --database rails
-   ```
-4. **Add rules** to `rules/<database-name>/rules/`, e.g. specific rules for Rails projects:
-   ```bash
-   echo "Classes should always be defined as one-liners, e.g. `MyModule::AnotherModule::MyClass`." > rules/ruby/rules/class-definitions.md
-   echo "# Callbacks\nNever use callbacks on models." > rules/rails/rules/models.md
-   echo "# Testing\nAlways start writing tests with a basic outline and let me review it." > rules/rails/rules/testing.md
-   echo "# Testing controllers\nNever do ..." > rules/rails/rules/testing-controllers.md
-   ```
-5. **Create a manifest** in `rules/<database-name>/manifest`:
-   ```
-   | ruby/class-definitions
-   | rails/models
-   | rails/testing
-   || rails/testing-controllers
-   ```
-   Every rule fragment creates properly indented entry in the resulting `*.local.md` file.
-6. **Compile your ruleset**:
-   ```bash
-   ai-rules build --manifest rules/<database-name>/manifest --out ~/my_project/CLAUDE.local.md
-   ```
-
-## 🛠️ CLI Commands
-
-### Install CLI
+**Linux:**
 ```bash
-./scripts/ai-rules install [--prefix <path>]
+curl -L https://github.com/vikdotdev/defrag/releases/latest/download/defrag-linux -o ~/.local/bin/defrag && chmod +x ~/.local/bin/defrag
 ```
-Installs the CLI tool to your system.
 
-### Create New Database
+**macOS:**
 ```bash
-ai-rules new --database <name>
+curl -L https://github.com/vikdotdev/defrag/releases/latest/download/defrag-macos -o /usr/local/bin/defrag && chmod +x /usr/local/bin/defrag
 ```
-Creates a new rule database with proper directory structure.
 
-**Example:**
+Then:
 ```bash
-ai-rules new --database react
+# Set up config with path to your collections
+mkdir -p ~/.config/defrag
+echo '{"paths": ["~/my-ai-rulesets"]}' > ~/.config/defrag/config.json
+
+# Create and build a collection
+defrag new ~/my-ai-rulesets/my-collection
+# edit ~/my-ai-rulesets/my-collection/default.manifest and add fragments
+defrag build ~/my-ai-rulesets/my-collection/default.manifest --out ~/my_project/CLAUDE.local.md
 ```
+
+## CLI Commands
+
+### Create New Collection
+```bash
+defrag new <name> [--no-manifest]
+```
+Creates a new fragment collection with proper directory structure.
 
 ### Validate Manifest
 ```bash
-ai-rules validate --manifest <path>
+defrag validate <manifest-path>
 ```
-Validates manifest syntax and checks that all referenced rules exist. Validation is also run before `ai-rules build`.
+Validates manifest syntax and checks that all referenced fragments exist.
 
-**Example:**
+### Build Ruleset
 ```bash
-ai-rules validate --manifest rules/myproject/manifest
+defrag build <manifest-path> [--out <file>]
 ```
+Compiles fragments from a manifest into a single markdown file.
 
-### Compile ruleset
 ```bash
-ai-rules build --manifest <path> [--out <file>]
-```
-Compiles rules from a manifest into a single markdown file at destination, or in `build/` directory.
-
-**Examples:**
-```bash
-# Build with default output location
-ai-rules build --manifest rules/myproject/manifest
+# Build with default output (build/<collection>.<manifest-name>.md)
+defrag build my-collection/default.manifest
 
 # Build with custom output
-ai-rules build --manifest rules/myproject/manifest --out path/to/myproject/ai-context.md
+defrag build my-collection/default.manifest --out path/to/output.md
+
+# Build all *.manifest files in current directory
+defrag build --all
 ```
 
-### Deploy Documentation
+### Build and Link
 ```bash
-ai-rules build-link --manifest <path> --out <symlink path>
+defrag build-link --manifest <path> --link <symlink-path>
 ```
-Builds documentation and creates a symlink for easy access.
+Builds documentation and creates a symlink to the output.
 
-## 🪢 Dependencies
+## Dependencies
 
-**Runtime dependencies**:
-- POSIX-compliant shell (`/bin/sh`)
-- `cat`
-- `sed`
-- `cut`
-- `wc`
-- `basename`
-- `dirname`
-- `pwd`
-- `cd`
-- `mkdir`
-- `ln`
-- `mv`
-- `rm`
-- `read`
+**Build time**: Zig compiler, libcmark
 
-**Development dependencies**:
-- `diff`
-- `grep`
+**Runtime**: None (single static binary)
 
-## 📋 Manifest Format
+## Manifest Format
 
-Manifests use simple text-based hierarchical format:
+Manifests have two sections: `[config]` and `[fragments]`.
 
 ```
+[config]
+heading_wrapper_template = "{fragment_id}"
+
+[fragments]
 # Comments start with #
-| top-level-rule
-|| nested-rule
-||| deeply-nested-rule
-| another-top-level-rule
+| top-level-fragment
+|| nested-fragment
+||| deeply-nested-fragment
+| another-top-level
 ```
 
-**Nesting Rules:**
-- `|` = Level 1 (becomes `# Rule: name`)
-- `||` = Level 2 (becomes `## Rule: name`)
-- `|||` = Level 3 (becomes `### Rule: name`)
+### Config Options
+
+- `heading_wrapper_template`: Template for fragment headings. Use `{fragment_id}` as placeholder. For example: `heading_wrapper_template = "Rule: {fragment_id}"`.
+
+### Nesting Levels
+
+- `|` = Level 1 (becomes `# heading`)
+- `||` = Level 2 (becomes `## heading`)
+- `|||` = Level 3 (becomes `### heading`)
 - Up to 6 levels supported
-- Each level must increase by exactly 1 (no skipping levels)
 
-### Rationale
+### Cross-Collection References
 
-**Why not YAML/JSON/TOML?:**
-- There's no easy way to parse any of those formats (that I know of) without external dependencies that are not written in POSIX shell script
+Reference fragments from other collections using `collection/fragment` syntax:
 
-**Why `|`?:**
-- Because if you squint, it makes the hierarchy look like a tree
-- For easy parsing
+```
+[fragments]
+| local-fragment
+| shared/common-fragment
+```
 
-## 📝 Writing Rules
+Requires a `config.json` with paths:
+```json
+{
+  "paths": ["path/to/collection"]
+}
+```
 
-- Rules are standard Markdown files stored in `rules/<database>/rules/*.md`
+## Writing Fragments
+
+- Fragments are standard Markdown files stored in `<collection>/fragments/*.md`
 - Use any heading levels you want - they'll be automatically normalized based on hierarchy
-- Each rule file becomes a titled section in the output (e.g. `# Rule: my_rule`)
-- Try to keep rules small and focused for easy composition & re-use in the manifest
+- Keep fragments small and focused for easy composition
 
-## 🔤 Glossary
-- **Rule/Fragment**: A markdown file with instructions for LLMs on highly specific topic
-- **Database**: A folder containing `rules/*.md` and `manifest` file
-- **Manifest**: A file that describes the hierarchy of rules make it into the final compiled output file for LLMs to consume
+## Glossary
 
-## 🤝 Contributing
+- **Fragment**: A markdown file with focused topic
+- **Collection**: A directory containing `fragments/` and manifest file(s)
+- **Manifest**: A file describing which fragments to include and their hierarchy
 
-1. Fork this template repository
-2. Create your rule databases in the `rules/` directory
-3. Add tests for new functionality in `test/`
-4. Ensure all tests pass: `./scripts/test`
-5. Submit a pull request
+## Contributing
 
-### 🧪 Testing
-When it comes to development of the template itself, here's the files contributor should care about:
+1. Clone the repository
+2. Make changes
+3. Run tests: `zig build test`
+4. Submit a pull request
+
+### Building
+
+```bash
+zig build              # Build the binary
+zig build test         # Run all tests
 ```
-ai-ruleset-manager/
-├── scripts/
-│   ├── ai-rules            # Main CLI tool, runned by automated tests
-│   └── test                # Test runner, runs test/*.sh test scripts
-└── test/                   # Comprehensive test suite
-    ├── tmp/                # Place for test build artifacts
-    ├── fixtures/           # Test data
-    └── *.sh                # Test scripts, automatically invoked by scripts/test
-```
-To test the project, run `./scripts/test`. Run specific test file with `./scripts/test build-01-basic`.
-
-## 🗺️ Roadmap
-- Include full rule-name in built template
-- Shell completions
-- More comprehensive tests with combination of features (comments + deep nesting + rules from various databases)
-- Better folder structure semantics
-  - Search for rules in `rules/<database/*.md`
-
