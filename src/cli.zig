@@ -43,26 +43,21 @@ pub const ParseError = error{
 
 pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
     var result = ParseResult{ .command = undefined };
-    var i: usize = 1;
 
-    // Parse global options
-    while (i < args.len) : (i += 1) {
-        const arg = args[i];
-        if (mem.eql(u8, arg, "--config") or mem.eql(u8, arg, "-c")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
-            i += 1;
-            result.config_path = args[i];
-        } else {
-            break;
-        }
-    }
-
-    if (i >= args.len) {
+    if (args.len < 2) {
         return ParseError.MissingCommand;
     }
 
-    const command = args[i];
-    const rest = args[i + 1 ..];
+    const command = args[1];
+    const rest = args[2..];
+
+    for (rest, 0..) |arg, i| {
+        if (mem.eql(u8, arg, "--config")) {
+            if (i + 1 >= rest.len) return ParseError.MissingArgument;
+            result.config_path = rest[i + 1];
+            break;
+        }
+    }
 
     if (mem.eql(u8, command, "build")) {
         result.command = .{ .build = try parseBuildOptions(rest) };
@@ -94,7 +89,9 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
+        if (mem.eql(u8, arg, "--config")) {
+            i += 1;
+        } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
             opts.manifest_path = args[i];
@@ -108,7 +105,6 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
         } else if (mem.startsWith(u8, arg, "-")) {
             return ParseError.UnknownOption;
         } else {
-            // Positional argument: treat as manifest path
             opts.manifest_path = arg;
             has_manifest = true;
         }
@@ -131,7 +127,9 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
+        if (mem.eql(u8, arg, "--config")) {
+            i += 1;
+        } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
             opts.manifest_path = args[i];
@@ -191,7 +189,9 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
+        if (mem.eql(u8, arg, "--config")) {
+            i += 1;
+        } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
             manifest_path = args[i];
@@ -251,7 +251,7 @@ test "parseArgs new with collection" {
 }
 
 test "parseArgs with config" {
-    const args = &[_][]const u8{ "defrag", "--config", "test/config.json", "build", "--all" };
+    const args = &[_][]const u8{ "defrag", "build", "--all", "--config", "test/config.json" };
     const result = try parseArgs(args);
     try std.testing.expect(result.command == .build);
     try std.testing.expectEqualStrings("test/config.json", result.config_path.?);
