@@ -61,7 +61,7 @@ pub fn main() !void {
             };
         },
         .new => |opts| {
-            new_cmd.run(allocator, opts) catch {
+            new_cmd.run(allocator, opts, loaded_config) catch {
                 std.process.exit(1);
             };
         },
@@ -384,21 +384,24 @@ test "validate: nested fragments" {
 
 test "new: basic creation" {
     const allocator = std.testing.allocator;
-    const db_path = try t.tmpPath(allocator, "test-new-db");
-    defer allocator.free(db_path);
-    defer t.cleanupDir(db_path);
+    const store_path = try t.tmpPath(allocator, "test-new-store");
+    defer allocator.free(store_path);
+    defer t.cleanupDir(store_path);
 
-    var result = try t.new(allocator, db_path);
+    var result = try t.new(allocator, "my-collection", store_path);
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectDirExists(db_path);
 
-    const fragments_dir = try std.fs.path.join(allocator, &.{ db_path, "fragments" });
+    const collection_path = try std.fs.path.join(allocator, &.{ store_path, "collections", "my-collection" });
+    defer allocator.free(collection_path);
+    try t.expectDirExists(collection_path);
+
+    const fragments_dir = try std.fs.path.join(allocator, &.{ collection_path, "fragments" });
     defer allocator.free(fragments_dir);
     try t.expectDirExists(fragments_dir);
 
-    const manifest_path = try std.fs.path.join(allocator, &.{ db_path, "default.manifest" });
+    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "manifest" });
     defer allocator.free(manifest_path);
     try t.expectFileExists(manifest_path);
 
@@ -418,14 +421,15 @@ test "new: missing collection name error" {
 
 test "new: collection exists error" {
     const allocator = std.testing.allocator;
-    const db_path = try t.tmpPath(allocator, "test-exists-db");
-    defer allocator.free(db_path);
+    const store_path = try t.tmpPath(allocator, "test-exists-store");
+    defer allocator.free(store_path);
+    defer t.cleanupDir(store_path);
 
-    // Create the directory first
-    try std.fs.cwd().makePath(db_path);
-    defer t.cleanupDir(db_path);
+    const collection_path = try std.fs.path.join(allocator, &.{ store_path, "collections", "existing" });
+    defer allocator.free(collection_path);
+    try std.fs.cwd().makePath(collection_path);
 
-    var result = try t.new(allocator, db_path);
+    var result = try t.new(allocator, "existing", store_path);
     defer result.deinit();
 
     try result.expectFailure();
@@ -433,18 +437,20 @@ test "new: collection exists error" {
 
 test "new: no-manifest option" {
     const allocator = std.testing.allocator;
-    const db_path = try t.tmpPath(allocator, "test-no-manifest-db");
-    defer allocator.free(db_path);
-    defer t.cleanupDir(db_path);
+    const store_path = try t.tmpPath(allocator, "test-no-manifest-store");
+    defer allocator.free(store_path);
+    defer t.cleanupDir(store_path);
 
-    var result = try t.newNoManifest(allocator, db_path);
+    var result = try t.newNoManifest(allocator, "no-manifest-collection", store_path);
     defer result.deinit();
 
     try result.expectSuccess();
-    try t.expectDirExists(db_path);
 
-    // Should NOT have default manifest when no_manifest is true
-    const manifest_path = try std.fs.path.join(allocator, &.{ db_path, "default.manifest" });
+    const collection_path = try std.fs.path.join(allocator, &.{ store_path, "collections", "no-manifest-collection" });
+    defer allocator.free(collection_path);
+    try t.expectDirExists(collection_path);
+
+    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "manifest" });
     defer allocator.free(manifest_path);
     try t.expectFileNotExists(manifest_path);
 }

@@ -106,12 +106,12 @@ pub fn validate(allocator: Allocator, manifest: []const u8) !RunResult {
     return runDefrag(allocator, &.{ "validate", "--manifest", manifest, "--config", fixtures_config });
 }
 
-pub fn new(allocator: Allocator, name: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", name, "--config", fixtures_config });
+pub fn new(allocator: Allocator, name: []const u8, store: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", name, "-s", store, "--config", fixtures_config });
 }
 
-pub fn newNoManifest(allocator: Allocator, name: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", "--no-manifest", name, "--config", fixtures_config });
+pub fn newNoManifest(allocator: Allocator, name: []const u8, store: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", "--no-manifest", name, "-s", store, "--config", fixtures_config });
 }
 
 pub fn init(allocator: Allocator, store_path: []const u8, config_path: []const u8) !RunResult {

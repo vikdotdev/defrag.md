@@ -31,6 +31,7 @@ pub const ValidateOptions = struct {
 pub const NewOptions = struct {
     collection_name: []const u8,
     no_manifest: bool = false,
+    store: ?[]const u8 = null,
 };
 
 pub const InitOptions = struct {
@@ -183,6 +184,10 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
             i += 1;
             opts.collection_name = args[i];
             has_name = true;
+        } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
+            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            i += 1;
+            opts.store = args[i];
         } else if (mem.eql(u8, arg, "--no-manifest")) {
             opts.no_manifest = true;
         } else if (mem.startsWith(u8, arg, "-")) {
@@ -307,6 +312,14 @@ test "parseArgs new with collection" {
     try std.testing.expect(result.command == .new);
     try std.testing.expectEqualStrings("my-collection", result.command.new.collection_name);
     try std.testing.expect(result.command.new.no_manifest);
+}
+
+test "parseArgs new -s store" {
+    const args = &[_][]const u8{ "defrag", "new", "my-collection", "-s", "my-store" };
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .new);
+    try std.testing.expectEqualStrings("my-collection", result.command.new.collection_name);
+    try std.testing.expectEqualStrings("my-store", result.command.new.store.?);
 }
 
 test "parseArgs with config" {
