@@ -10,6 +10,7 @@ pub const Command = union(enum) {
     build: BuildOptions,
     validate: ValidateOptions,
     new: NewOptions,
+    init: InitOptions,
     build_link: BuildLinkOptions,
     help: void,
 };
@@ -27,6 +28,11 @@ pub const ValidateOptions = struct {
 pub const NewOptions = struct {
     collection_name: []const u8,
     no_manifest: bool = false,
+};
+
+pub const InitOptions = struct {
+    store_path: []const u8,
+    config_path: ?[]const u8 = null,
 };
 
 pub const BuildLinkOptions = struct {
@@ -65,6 +71,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
         result.command = .{ .validate = try parseValidateOptions(rest) };
     } else if (mem.eql(u8, command, "new")) {
         result.command = .{ .new = try parseNewOptions(rest) };
+    } else if (mem.eql(u8, command, "init")) {
+        result.command = .{ .init = try parseInitOptions(rest) };
     } else if (mem.eql(u8, command, "build-link")) {
         result.command = .{ .build_link = try parseBuildLinkOptions(rest) };
     } else if (mem.eql(u8, command, "help") or
@@ -159,7 +167,9 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--collection") or mem.eql(u8, arg, "-c")) {
+        if (mem.eql(u8, arg, "--config")) {
+            i += 1;
+        } else if (mem.eql(u8, arg, "--collection") or mem.eql(u8, arg, "-c")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
             opts.collection_name = args[i];
@@ -212,6 +222,30 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
         .manifest_path = manifest_path.?,
         .link_path = link_path.?,
     };
+}
+
+fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
+    var opts = InitOptions{ .store_path = undefined };
+    var has_path = false;
+
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+
+        if (mem.eql(u8, arg, "--config")) {
+            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            i += 1;
+            opts.config_path = args[i];
+        } else if (mem.startsWith(u8, arg, "-")) {
+            return ParseError.UnknownOption;
+        } else {
+            opts.store_path = arg;
+            has_path = true;
+        }
+    }
+
+    if (!has_path) return ParseError.MissingArgument;
+    return opts;
 }
 
 test "parseArgs help" {

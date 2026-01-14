@@ -111,9 +111,10 @@ fn resolveFragment(
     const name_with_ext = try fs.ensureMdExtension(allocator, id.name);
 
     if (id.collection) |coll| {
-        for (config.paths) |base_path| {
+        for (config.stores) |store| {
             const full_path = try std.fs.path.join(allocator, &.{
-                base_path,
+                store.path,
+                Config.collections_dir,
                 coll,
                 Config.fragments_dir,
                 name_with_ext,

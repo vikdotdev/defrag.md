@@ -1,13 +1,13 @@
 const std = @import("std");
 const mem = std.mem;
 
-const max_fragment_size = 10 * 1024 * 1024; // 10MB
+pub const max_file_size = 10 * 1024 * 1024;
 pub const md_ext = ".md";
 
 pub fn readFile(allocator: mem.Allocator, file_path: []const u8) ![]const u8 {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
-    return file.readToEndAlloc(allocator, max_fragment_size);
+    return file.readToEndAlloc(allocator, max_file_size);
 }
 
 pub fn writeFile(file_path: []const u8, content: []const u8) !void {

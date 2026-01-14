@@ -6,6 +6,8 @@ const mem = std.mem;
 const Child = std.process.Child;
 const Allocator = mem.Allocator;
 
+pub const fixtures_config = "fixtures/config.json";
+
 /// Result of running defrag subprocess
 pub const RunResult = struct {
     exit_code: u8,
@@ -92,38 +94,36 @@ pub fn runDefrag(allocator: Allocator, args: []const []const u8) !RunResult {
     };
 }
 
-/// Run defrag build command
 pub fn build(allocator: Allocator, manifest: []const u8, output: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "build", "--manifest", manifest, "--out", output });
+    return runDefrag(allocator, &.{ "build", "--manifest", manifest, "--out", output, "--config", fixtures_config });
 }
 
-/// Run defrag build with config
 pub fn buildWithConfig(allocator: Allocator, config: []const u8, manifest: []const u8, output: []const u8) !RunResult {
     return runDefrag(allocator, &.{ "build", "--manifest", manifest, "--out", output, "--config", config });
 }
 
-/// Run defrag validate command
 pub fn validate(allocator: Allocator, manifest: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "validate", "--manifest", manifest });
+    return runDefrag(allocator, &.{ "validate", "--manifest", manifest, "--config", fixtures_config });
 }
 
-/// Run defrag new command
-pub fn new(allocator: Allocator, db_name: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", db_name });
+pub fn new(allocator: Allocator, name: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", name, "--config", fixtures_config });
 }
 
-/// Run defrag new --no-manifest
-pub fn newNoManifest(allocator: Allocator, db_name: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", "--no-manifest", db_name });
+pub fn newNoManifest(allocator: Allocator, name: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", "--no-manifest", name, "--config", fixtures_config });
+}
+
+pub fn init(allocator: Allocator, store_path: []const u8, config_path: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "init", store_path, "--config", config_path });
 }
 
 // ============================================================================
 // File/Directory helpers
 // ============================================================================
 
-/// Get path to fixture manifest: fixtures/{name}/manifest
 pub fn fixtureManifest(allocator: Allocator, name: []const u8) ![]const u8 {
-    return std.fs.path.join(allocator, &.{ "fixtures", name, "manifest" });
+    return std.fs.path.join(allocator, &.{ "fixtures", "collections", name, "manifest" });
 }
 
 /// Get path to temp output: test/tmp/{name}
