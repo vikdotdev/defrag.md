@@ -16,9 +16,10 @@ pub const Command = union(enum) {
 };
 
 pub const BuildOptions = struct {
-    manifest_path: []const u8,
+    manifest_path: ?[]const u8 = null,
     output_path: ?[]const u8 = null,
     all: bool = false,
+    store: ?[]const u8 = null,
 };
 
 pub const ValidateOptions = struct {
@@ -88,9 +89,7 @@ pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
 }
 
 fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
-    var opts = BuildOptions{
-        .manifest_path = undefined,
-    };
+    var opts = BuildOptions{};
     var has_manifest = false;
 
     var i: usize = 0;
@@ -110,6 +109,10 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
             opts.output_path = args[i];
         } else if (mem.eql(u8, arg, "--all") or mem.eql(u8, arg, "-a")) {
             opts.all = true;
+        } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
+            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            i += 1;
+            opts.store = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
             return ParseError.UnknownOption;
         } else {
@@ -259,14 +262,14 @@ test "parseArgs build with manifest" {
     const args = &[_][]const u8{ "defrag", "build", "--manifest", "path/to/manifest" };
     const result = try parseArgs(args);
     try std.testing.expect(result.command == .build);
-    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path);
+    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path.?);
 }
 
 test "parseArgs build with positional" {
     const args = &[_][]const u8{ "defrag", "build", "path/to/manifest" };
     const result = try parseArgs(args);
     try std.testing.expect(result.command == .build);
-    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path);
+    try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path.?);
 }
 
 test "parseArgs build --all" {
@@ -274,6 +277,14 @@ test "parseArgs build --all" {
     const result = try parseArgs(args);
     try std.testing.expect(result.command == .build);
     try std.testing.expect(result.command.build.all);
+}
+
+test "parseArgs build --all -s store" {
+    const args = &[_][]const u8{ "defrag", "build", "--all", "-s", "my-store" };
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .build);
+    try std.testing.expect(result.command.build.all);
+    try std.testing.expectEqualStrings("my-store", result.command.build.store.?);
 }
 
 test "parseArgs new with collection" {

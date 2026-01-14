@@ -20,27 +20,32 @@ pub const BuildError = error{
 /// Execute the build command
 pub fn run(allocator: mem.Allocator, options: BuildOptions, config: Config) !void {
     if (options.all) {
-        try buildAllManifests(allocator, config);
+        try buildAllManifests(allocator, options.store, config);
     } else {
-        try buildManifest(allocator, options, config);
+        try buildManifest(allocator, options.manifest_path.?, options.output_path, config);
     }
 }
 
 /// Build a single manifest file
-fn buildManifest(allocator: mem.Allocator, build_options: BuildOptions, config: Config) !void {
+fn buildManifest(
+    allocator: mem.Allocator,
+    manifest_path: []const u8,
+    output_path: ?[]const u8,
+    config: Config,
+) !void {
     // Determine collection directory from manifest path
-    const manifest_dir = std.fs.path.dirname(build_options.manifest_path) orelse ".";
+    const manifest_dir = std.fs.path.dirname(manifest_path) orelse ".";
     const collection = try Collection.init(allocator, manifest_dir);
 
     // Read manifest file
-    const manifest_content = fs.readFile(allocator, build_options.manifest_path) catch {
-        try log.err("Manifest file not found: {s}", .{build_options.manifest_path});
+    const manifest_content = fs.readFile(allocator, manifest_path) catch {
+        try log.err("Manifest file not found: {s}", .{manifest_path});
         return BuildError.ManifestNotFound;
     };
 
     // Parse manifest
     const manifest = Manifest.parse(allocator, manifest_content) catch {
-        try log.err("Invalid manifest: {s}", .{build_options.manifest_path});
+        try log.err("Invalid manifest: {s}", .{manifest_path});
         return BuildError.InvalidManifest;
     };
 
@@ -83,10 +88,10 @@ fn buildManifest(allocator: mem.Allocator, build_options: BuildOptions, config: 
     try output.append(allocator, '\n');
 
     // Determine output path
-    const final_output_path = if (build_options.output_path) |path|
+    const final_output_path = if (output_path) |path|
         path
     else
-        try defaultOutputPath(allocator, build_options.manifest_path);
+        try defaultOutputPath(allocator, manifest_path);
 
     // Write output file
     try fs.ensureParentDir(final_output_path);
@@ -95,32 +100,39 @@ fn buildManifest(allocator: mem.Allocator, build_options: BuildOptions, config: 
     try log.info("Built: {s}", .{final_output_path});
 }
 
-/// Build all *.manifest files in current directory
-fn buildAllManifests(allocator: mem.Allocator, config: Config) !void {
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = std.fs.cwd().realpath(".", &buf) catch ".";
-    try log.info("Building {s}/*{s}", .{ cwd, Config.manifest_ext });
-
-    var dir = try std.fs.cwd().openDir(".", .{ .iterate = true });
-    defer dir.close();
-
+/// Build all manifests in stores
+fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config: Config) !void {
     var built_count: usize = 0;
-    var iter = dir.iterate();
 
-    while (iter.next() catch null) |entry| {
-        if (entry.kind != .file) continue;
-        if (!mem.endsWith(u8, entry.name, Config.manifest_ext)) continue;
+    for (config.stores) |store| {
+        if (store_filter) |filter| {
+            if (!mem.eql(u8, store.path, filter)) continue;
+        }
 
-        const manifest_path = try allocator.dupe(u8, entry.name);
-        buildManifest(allocator, .{ .manifest_path = manifest_path }, config) catch |err| {
-            try log.warn("Failed to build {s}: {}", .{ entry.name, err });
-            continue;
-        };
-        built_count += 1;
+        const collections_path = try std.fs.path.join(allocator, &.{ store.path, Config.collections_dir });
+        var collections_dir = std.fs.cwd().openDir(collections_path, .{ .iterate = true }) catch continue;
+        defer collections_dir.close();
+
+        var iter = collections_dir.iterate();
+        while (iter.next() catch null) |entry| {
+            if (entry.kind != .directory) continue;
+
+            const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
+            if (!fs.fileExists(manifest_path)) continue;
+
+            const output_name = try std.fmt.allocPrint(allocator, "{s}{s}", .{ entry.name, fs.md_ext });
+            const output_path = try std.fs.path.join(allocator, &.{ store.path, Config.build_dir, output_name });
+
+            buildManifest(allocator, manifest_path, output_path, config) catch |err| {
+                try log.warn("Failed to build {s}: {}", .{ manifest_path, err });
+                continue;
+            };
+            built_count += 1;
+        }
     }
 
     if (built_count == 0) {
-        try log.info("No *{s} files found in current directory", .{Config.manifest_ext});
+        try log.info("No manifests found", .{});
     } else {
         try log.info("Built {d} manifest(s)", .{built_count});
     }
