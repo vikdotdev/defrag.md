@@ -23,7 +23,9 @@ pub const BuildOptions = struct {
 };
 
 pub const ValidateOptions = struct {
-    manifest_path: []const u8,
+    manifest_path: ?[]const u8 = null,
+    all: bool = false,
+    store: ?[]const u8 = null,
 };
 
 pub const NewOptions = struct {
@@ -129,9 +131,7 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
 }
 
 fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
-    var opts = ValidateOptions{
-        .manifest_path = undefined,
-    };
+    var opts = ValidateOptions{};
     var has_manifest = false;
 
     var i: usize = 0;
@@ -145,6 +145,12 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
             i += 1;
             opts.manifest_path = args[i];
             has_manifest = true;
+        } else if (mem.eql(u8, arg, "--all") or mem.eql(u8, arg, "-a")) {
+            opts.all = true;
+        } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
+            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            i += 1;
+            opts.store = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
             return ParseError.UnknownOption;
         } else {
@@ -153,7 +159,7 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
         }
     }
 
-    if (!has_manifest) {
+    if (!has_manifest and !opts.all) {
         return ParseError.MissingArgument;
     }
 
@@ -285,6 +291,14 @@ test "parseArgs build --all -s store" {
     try std.testing.expect(result.command == .build);
     try std.testing.expect(result.command.build.all);
     try std.testing.expectEqualStrings("my-store", result.command.build.store.?);
+}
+
+test "parseArgs validate --all -s store" {
+    const args = &[_][]const u8{ "defrag", "validate", "--all", "-s", "my-store" };
+    const result = try parseArgs(args);
+    try std.testing.expect(result.command == .validate);
+    try std.testing.expect(result.command.validate.all);
+    try std.testing.expectEqualStrings("my-store", result.command.validate.store.?);
 }
 
 test "parseArgs new with collection" {

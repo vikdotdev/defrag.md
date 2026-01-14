@@ -16,8 +16,14 @@ pub const ValidateError = error{
 };
 
 pub fn run(allocator: mem.Allocator, options: ValidateOptions, config: Config) !void {
-    const manifest_path = options.manifest_path;
+    if (options.all) {
+        try validateAllManifests(allocator, options.store, config);
+    } else {
+        try validateManifest(allocator, options.manifest_path.?, config);
+    }
+}
 
+fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config: Config) !void {
     const manifest_content = fs.readFile(allocator, manifest_path) catch {
         try log.err("Manifest file not found: {s}", .{manifest_path});
         return ValidateError.ManifestNotFound;
@@ -66,6 +72,42 @@ pub fn run(allocator: mem.Allocator, options: ValidateOptions, config: Config) !
     } else {
         try log.info("✗ Collection '{s}' has {d} missing fragment(s)", .{ collection_name, missing });
         return ValidateError.ValidationFailed;
+    }
+}
+
+fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config: Config) !void {
+    var validated_count: usize = 0;
+    var failed_count: usize = 0;
+
+    for (config.stores) |store| {
+        if (store_filter) |filter| {
+            if (!mem.eql(u8, store.path, filter)) continue;
+        }
+
+        const collections_path = try std.fs.path.join(allocator, &.{ store.path, Config.collections_dir });
+        var collections_dir = std.fs.cwd().openDir(collections_path, .{ .iterate = true }) catch continue;
+        defer collections_dir.close();
+
+        var iter = collections_dir.iterate();
+        while (iter.next() catch null) |entry| {
+            if (entry.kind != .directory) continue;
+
+            const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
+            if (!fs.fileExists(manifest_path)) continue;
+
+            validateManifest(allocator, manifest_path, config) catch {
+                failed_count += 1;
+                continue;
+            };
+            validated_count += 1;
+        }
+    }
+
+    try log.info("", .{});
+    if (failed_count == 0) {
+        try log.info("Validated {d} manifest(s)", .{validated_count});
+    } else {
+        try log.info("Validated {d} manifest(s), {d} failed", .{ validated_count, failed_count });
     }
 }
 
