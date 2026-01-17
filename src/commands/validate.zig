@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const log = @import("../log.zig");
 
 const Config = @import("../config.zig").Config;
@@ -24,7 +24,7 @@ pub fn run(allocator: mem.Allocator, options: ValidateOptions, config: Config) !
 }
 
 fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config: Config) !void {
-    const manifest_content = fs.readFile(allocator, manifest_path) catch {
+    const manifest_content = paths.readFile(allocator, manifest_path) catch {
         try log.err("Manifest file not found: {s}", .{manifest_path});
         return ValidateError.ManifestNotFound;
     };
@@ -35,7 +35,7 @@ fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config:
     };
 
     const manifest_dir = std.fs.path.dirname(manifest_path) orelse ".";
-    const collection_name = try getCollectionName(allocator, manifest_dir);
+    const collection_name = try paths.getCollectionName(allocator, manifest_dir);
     const collection = try Collection.init(allocator, manifest_dir);
 
     try log.info("Validating manifest: {s}", .{manifest_path});
@@ -49,7 +49,7 @@ fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config:
     for (manifest.fragments) |entry| {
         total += 1;
         const fragment_id = Fragment.Id.parse(entry.name);
-        const name_with_ext = try fs.ensureMdExtension(allocator, entry.name);
+        const name_with_ext = try paths.ensureMdExtension(allocator, entry.name);
 
         if (Fragment.resolve(allocator, collection, fragment_id, config)) |_| {
             try log.info("✓ {s} (level {d})", .{ name_with_ext, entry.level });
@@ -93,7 +93,7 @@ fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, con
             if (entry.kind != .directory) continue;
 
             const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
-            if (!fs.fileExists(manifest_path)) continue;
+            if (!paths.fileExists(manifest_path)) continue;
 
             validateManifest(allocator, manifest_path, config) catch {
                 failed_count += 1;
@@ -111,11 +111,3 @@ fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, con
     }
 }
 
-fn getCollectionName(allocator: std.mem.Allocator, manifest_dir: []const u8) ![]const u8 {
-    if (!std.mem.eql(u8, manifest_dir, ".")) {
-        return std.fs.path.basename(manifest_dir);
-    }
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = try std.fs.cwd().realpath(".", &buf);
-    return allocator.dupe(u8, std.fs.path.basename(cwd));
-}

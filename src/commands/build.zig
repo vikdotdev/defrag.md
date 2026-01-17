@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const log = @import("../log.zig");
 
 const ArrayList = std.ArrayList;
@@ -38,7 +38,7 @@ fn buildManifest(
     const collection = try Collection.init(allocator, manifest_dir);
 
     // Read manifest file
-    const manifest_content = fs.readFile(allocator, manifest_path) catch {
+    const manifest_content = paths.readFile(allocator, manifest_path) catch {
         try log.err("Manifest file not found: {s}", .{manifest_path});
         return BuildError.ManifestNotFound;
     };
@@ -94,8 +94,8 @@ fn buildManifest(
         try defaultOutputPath(allocator, manifest_path);
 
     // Write output file
-    try fs.ensureParentDir(final_output_path);
-    try fs.writeFile(final_output_path, output.items);
+    try paths.ensureParentDir(final_output_path);
+    try paths.writeFile(final_output_path, output.items);
 
     try log.info("Built: {s}", .{final_output_path});
 }
@@ -118,9 +118,9 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
             if (entry.kind != .directory) continue;
 
             const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
-            if (!fs.fileExists(manifest_path)) continue;
+            if (!paths.fileExists(manifest_path)) continue;
 
-            const output_name = try std.fmt.allocPrint(allocator, "{s}{s}", .{ entry.name, fs.md_ext });
+            const output_name = try std.fmt.allocPrint(allocator, "{s}{s}", .{ entry.name, paths.md_ext });
             const output_path = try std.fs.path.join(allocator, &.{ store.path, Config.build_dir, output_name });
 
             buildManifest(allocator, manifest_path, output_path, config) catch |err| {
@@ -141,25 +141,14 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
 /// Generate default output path: build/<collection>.<manifest-prefix>.md
 /// e.g. my-collection/default.manifest -> build/my-collection.default.md
 fn defaultOutputPath(allocator: mem.Allocator, manifest_path: []const u8) ![]const u8 {
-    const collection_name = try getCollectionName(manifest_path);
+    const manifest_dir = std.fs.path.dirname(manifest_path) orelse ".";
+    const collection_name = try paths.getCollectionName(allocator, manifest_dir);
     const prefix = getManifestPrefix(manifest_path);
     return std.fmt.allocPrint(
         allocator,
-        Config.build_dir ++ "/{s}.{s}" ++ fs.md_ext,
+        Config.build_dir ++ "/{s}.{s}" ++ paths.md_ext,
         .{ collection_name, prefix },
     );
-}
-
-fn getCollectionName(manifest_path: []const u8) ![]const u8 {
-    if (std.fs.path.dirname(manifest_path)) |dir| {
-        if (!mem.eql(u8, dir, ".")) {
-            return std.fs.path.basename(dir);
-        }
-    }
-    // Manifest in current directory - get current dir name
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = try std.fs.cwd().realpath(".", &buf);
-    return std.fs.path.basename(cwd);
 }
 
 fn getManifestPrefix(manifest_path: []const u8) []const u8 {

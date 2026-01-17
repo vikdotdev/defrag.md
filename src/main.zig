@@ -5,7 +5,7 @@ const validate_cmd = @import("commands/validate.zig");
 const new_cmd = @import("commands/new.zig");
 const init_cmd = @import("commands/init.zig");
 const build_link_cmd = @import("commands/build_link.zig");
-const fs = @import("fs.zig");
+const paths = @import("paths.zig");
 const log = @import("log.zig");
 const manifest = @import("core/manifest.zig");
 const heading = @import("core/heading.zig");
@@ -131,7 +131,7 @@ test {
     _ = new_cmd;
     _ = init_cmd;
     _ = build_link_cmd;
-    _ = fs;
+    _ = paths;
     _ = manifest;
     _ = heading;
     _ = fragment;

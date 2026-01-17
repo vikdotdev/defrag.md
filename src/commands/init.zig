@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const log = @import("../log.zig");
 
 const Config = @import("../config.zig").Config;
@@ -53,7 +53,7 @@ fn createGitignore(allocator: mem.Allocator, store_path: []const u8) !void {
 
     const file = std.fs.cwd().openFile(gitignore_path, .{ .mode = .read_write }) catch |err| {
         if (err == error.FileNotFound) {
-            fs.writeFile(gitignore_path, build_entry) catch return;
+            paths.writeFile(gitignore_path, build_entry) catch return;
             try log.info("Created: {s}", .{gitignore_path});
             return;
         }
@@ -61,7 +61,7 @@ fn createGitignore(allocator: mem.Allocator, store_path: []const u8) !void {
     };
     defer file.close();
 
-    const content = file.readToEndAlloc(allocator, fs.max_file_size) catch return;
+    const content = file.readToEndAlloc(allocator, paths.max_file_size) catch return;
     if (mem.indexOf(u8, content, "build/") != null) return;
 
     file.seekTo(try file.getEndPos()) catch return;
@@ -71,7 +71,7 @@ fn createGitignore(allocator: mem.Allocator, store_path: []const u8) !void {
 
 fn updateConfig(allocator: mem.Allocator, store_path: []const u8, custom_config_path: ?[]const u8) !void {
     const config_path = custom_config_path orelse try Config.defaultPath(allocator);
-    const expanded_store = fs.expandTilde(allocator, store_path) catch store_path;
+    const expanded_store = paths.expandTilde(allocator, store_path) catch store_path;
     const abs_store = std.fs.cwd().realpathAlloc(allocator, expanded_store) catch expanded_store;
 
     const file = std.fs.cwd().openFile(config_path, .{ .mode = .read_only }) catch |err| {
@@ -83,7 +83,7 @@ fn updateConfig(allocator: mem.Allocator, store_path: []const u8, custom_config_
     };
     defer file.close();
 
-    const content = file.readToEndAlloc(allocator, fs.max_file_size) catch return;
+    const content = file.readToEndAlloc(allocator, paths.max_file_size) catch return;
 
     const parsed = std.json.parseFromSlice(Config, allocator, content, .{
         .allocate = .alloc_always,
@@ -93,7 +93,7 @@ fn updateConfig(allocator: mem.Allocator, store_path: []const u8, custom_config_
     };
 
     for (parsed.value.stores) |store| {
-        const expanded = fs.expandTilde(allocator, store.path) catch store.path;
+        const expanded = paths.expandTilde(allocator, store.path) catch store.path;
         const abs = std.fs.cwd().realpathAlloc(allocator, expanded) catch expanded;
         if (mem.eql(u8, abs, abs_store)) {
             try log.info("Store already in config", .{});
@@ -123,6 +123,6 @@ fn createNewConfig(allocator: mem.Allocator, config_path: []const u8, store_path
 fn writeConfig(allocator: mem.Allocator, config_path: []const u8, stores: []const Store) !void {
     const data = Config{ .stores = stores };
     const json = std.json.Stringify.valueAlloc(allocator, data, .{ .whitespace = .indent_2 }) catch return;
-    fs.writeFile(config_path, json) catch return;
+    paths.writeFile(config_path, json) catch return;
 }
 

@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const log = @import("../log.zig");
 
 const Config = @import("../config.zig").Config;
@@ -55,21 +55,21 @@ fn createCollection(
             \\| example
             \\
         ;
-        fs.writeFile(manifest_path, manifest_content) catch {
+        paths.writeFile(manifest_path, manifest_content) catch {
             try log.err("Failed to create manifest: {s}", .{manifest_path});
             return NewError.CreateFailed;
         };
         try log.info("Created: {s}", .{manifest_path});
     }
 
-    const example_path = try std.fs.path.join(allocator, &.{ fragments_path, "example" ++ fs.md_ext });
+    const example_path = try std.fs.path.join(allocator, &.{ fragments_path, "example" ++ paths.md_ext });
     const example_content =
         \\## Example
         \\
         \\Add your content here.
         \\
     ;
-    fs.writeFile(example_path, example_content) catch {
+    paths.writeFile(example_path, example_content) catch {
         try log.err("Failed to create example: {s}", .{example_path});
         return NewError.CreateFailed;
     };

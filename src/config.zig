@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("fs.zig");
+const paths = @import("paths.zig");
 
 pub const Store = struct {
     path: []const u8,
@@ -50,7 +50,7 @@ fn loadConfig(allocator: mem.Allocator) !Config {
 }
 
 fn loadConfigFromPath(allocator: mem.Allocator, path: []const u8) !Config {
-    const expanded_path = fs.expandTilde(allocator, path) catch return Config.Error.HomeNotSet;
+    const expanded_path = paths.expandTilde(allocator, path) catch return Config.Error.HomeNotSet;
 
     const file = std.fs.cwd().openFile(expanded_path, .{}) catch |err| {
         if (err == error.FileNotFound) return Config.Error.FileNotFound;
@@ -58,7 +58,7 @@ fn loadConfigFromPath(allocator: mem.Allocator, path: []const u8) !Config {
     };
     defer file.close();
 
-    const content = try file.readToEndAlloc(allocator, fs.max_file_size);
+    const content = try file.readToEndAlloc(allocator, paths.max_file_size);
 
     const parsed = std.json.parseFromSlice(Config, allocator, content, .{
         .allocate = .alloc_always,
@@ -67,7 +67,7 @@ fn loadConfigFromPath(allocator: mem.Allocator, path: []const u8) !Config {
     var expanded_stores = try allocator.alloc(Store, parsed.value.stores.len);
     for (parsed.value.stores, 0..) |store, i| {
         expanded_stores[i] = .{
-            .path = fs.expandTilde(allocator, store.path) catch return Config.Error.HomeNotSet,
+            .path = paths.expandTilde(allocator, store.path) catch return Config.Error.HomeNotSet,
             .default = store.default,
         };
     }

@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const log = @import("../log.zig");
 const build_cmd = @import("build.zig");
 
@@ -24,12 +24,12 @@ pub fn run(allocator: mem.Allocator, options: BuildLinkOptions, config: Config) 
 
     // Determine the built file path (same logic as build command)
     const manifest_dir = std.fs.path.dirname(options.manifest_path) orelse ".";
-    const collection_name = try getCollectionName(allocator, manifest_dir);
+    const collection_name = try paths.getCollectionName(allocator, manifest_dir);
     const manifest_prefix = getManifestPrefix(options.manifest_path);
     const build_path = try std.fmt.allocPrint(
         allocator,
         "{s}/{s}.{s}{s}",
-        .{ Config.build_dir, collection_name, manifest_prefix, fs.md_ext },
+        .{ Config.build_dir, collection_name, manifest_prefix, paths.md_ext },
     );
 
     // Get absolute path to build file
@@ -48,7 +48,7 @@ pub fn run(allocator: mem.Allocator, options: BuildLinkOptions, config: Config) 
     };
 
     // Ensure parent directory exists
-    try fs.ensureParentDir(options.link_path);
+    try paths.ensureParentDir(options.link_path);
 
     // Create symlink
     std.fs.cwd().symLink(abs_build_path, options.link_path, .{}) catch {
@@ -57,15 +57,6 @@ pub fn run(allocator: mem.Allocator, options: BuildLinkOptions, config: Config) 
     };
 
     try log.info("Linked: {s} -> {s}", .{ options.link_path, build_path });
-}
-
-fn getCollectionName(allocator: std.mem.Allocator, manifest_dir: []const u8) ![]const u8 {
-    if (!std.mem.eql(u8, manifest_dir, ".")) {
-        return std.fs.path.basename(manifest_dir);
-    }
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = try std.fs.cwd().realpath(".", &buf);
-    return allocator.dupe(u8, std.fs.path.basename(cwd));
 }
 
 fn getManifestPrefix(manifest_path: []const u8) []const u8 {

@@ -34,6 +34,15 @@ pub fn ensureParentDir(path: []const u8) !void {
     }
 }
 
+pub fn getCollectionName(allocator: mem.Allocator, manifest_dir: []const u8) ![]const u8 {
+    if (!mem.eql(u8, manifest_dir, ".")) {
+        return std.fs.path.basename(manifest_dir);
+    }
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    const cwd = try std.fs.cwd().realpath(".", &buf);
+    return allocator.dupe(u8, std.fs.path.basename(cwd));
+}
+
 pub const ExpandTildeError = error{ HomeNotSet, OutOfMemory };
 
 pub fn expandTilde(allocator: mem.Allocator, path: []const u8) ExpandTildeError![]const u8 {

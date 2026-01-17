@@ -1,7 +1,7 @@
 const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
-const fs = @import("../fs.zig");
+const paths = @import("../paths.zig");
 const headings = @import("heading.zig");
 
 const Config = @import("../config.zig").Config;
@@ -108,7 +108,7 @@ fn resolveFragment(
     id: Fragment.Id,
     config: Config,
 ) ![]const u8 {
-    const name_with_ext = try fs.ensureMdExtension(allocator, id.name);
+    const name_with_ext = try paths.ensureMdExtension(allocator, id.name);
 
     if (id.collection) |coll| {
         for (config.stores) |store| {
@@ -120,7 +120,7 @@ fn resolveFragment(
                 name_with_ext,
             });
 
-            if (fs.fileExists(full_path)) {
+            if (paths.fileExists(full_path)) {
                 return full_path;
             }
         }
@@ -132,7 +132,7 @@ fn resolveFragment(
             name_with_ext,
         });
 
-        if (fs.fileExists(full_path)) {
+        if (paths.fileExists(full_path)) {
             return full_path;
         }
         return Fragment.Error.FragmentNotFound;
@@ -147,7 +147,7 @@ fn processFragment(
     manifest: Manifest,
     level: u8,
 ) !Fragment {
-    const content = fs.readFile(allocator, path) catch |err| switch (err) {
+    const content = paths.readFile(allocator, path) catch |err| switch (err) {
         error.FileNotFound => return Fragment.Error.FileNotFound,
         else => return Fragment.Error.ReadError,
     };
