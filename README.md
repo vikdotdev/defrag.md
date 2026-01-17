@@ -49,12 +49,11 @@ curl -L https://github.com/vikdotdev/defrag/releases/latest/download/defrag-maco
 
 Then:
 ```bash
-# Set up config with path to your collections
-mkdir -p ~/.config/defrag
-echo '{"paths": ["~/my-ai-rulesets"]}' > ~/.config/defrag/config.json
+# Initialize a store (creates config automatically)
+defrag init ~/my-ai-rulesets
 
 # Create and build a collection
-defrag new ~/my-ai-rulesets/my-collection
+defrag new my-collection
 # edit ~/my-ai-rulesets/my-collection/default.manifest and add fragments
 defrag build ~/my-ai-rulesets/my-collection/default.manifest --out ~/my_project/CLAUDE.local.md
 ```
@@ -139,10 +138,10 @@ Reference fragments from other collections using `collection/fragment` syntax:
 | shared/common-fragment
 ```
 
-Requires a `config.json` with paths:
+Requires stores configured in `~/.config/defrag/config.json`:
 ```json
 {
-  "paths": ["path/to/collection"]
+  "stores": [{"path": "~/my-ai-rulesets", "default": true}]
 }
 ```
 
@@ -170,4 +169,12 @@ Requires a `config.json` with paths:
 ```bash
 zig build              # Build the binary
 zig build test         # Run all tests
+```
+
+### Releasing
+
+Update version in `build.zig.zon`, then:
+
+```bash
+./scripts/release.sh
 ```
