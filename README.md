@@ -37,14 +37,19 @@ my-ai-rulesets/
 
 ## Quick Start
 
-**Linux:**
+**Linux (x86_64):**
 ```bash
-curl -L https://github.com/vikdotdev/defrag/releases/latest/download/defrag-linux -o ~/.local/bin/defrag && chmod +x ~/.local/bin/defrag
+curl -L https://github.com/vikdotdev/defrag.md/releases/latest/download/defrag-x86_64-linux-musl -o ~/.local/bin/defrag && chmod +x ~/.local/bin/defrag
 ```
 
-**macOS:**
+**macOS (Apple Silicon):**
 ```bash
-curl -L https://github.com/vikdotdev/defrag/releases/latest/download/defrag-macos -o /usr/local/bin/defrag && chmod +x /usr/local/bin/defrag
+curl -L https://github.com/vikdotdev/defrag.md/releases/latest/download/defrag-aarch64-macos -o /usr/local/bin/defrag && chmod +x /usr/local/bin/defrag
+```
+
+**macOS (Intel):**
+```bash
+curl -L https://github.com/vikdotdev/defrag.md/releases/latest/download/defrag-x86_64-macos -o /usr/local/bin/defrag && chmod +x /usr/local/bin/defrag
 ```
 
 Then:
