@@ -122,10 +122,6 @@ pub fn init(allocator: Allocator, store_path: []const u8, config_path: []const u
 // File/Directory helpers
 // ============================================================================
 
-pub fn fixtureManifest(allocator: Allocator, name: []const u8) ![]const u8 {
-    return std.fs.path.join(allocator, &.{ "fixtures", "collections", name, "manifest" });
-}
-
 /// Get path to temp output: test/tmp/{name}
 pub fn tmpPath(allocator: Allocator, name: []const u8) ![]const u8 {
     std.fs.cwd().makePath("zig-out/defragtest") catch {};

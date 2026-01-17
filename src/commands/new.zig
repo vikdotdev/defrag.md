@@ -25,7 +25,7 @@ pub fn run(allocator: mem.Allocator, options: NewOptions, config: Config) !void 
     });
 
     std.fs.cwd().access(collection_path, .{}) catch {
-        return createCollection(allocator, collection_path, options.collection_name, options.no_manifest);
+        return createCollection(allocator, collection_path, options.no_manifest);
     };
 
     try log.err("Collection '{s}' already exists", .{collection_path});
@@ -35,7 +35,6 @@ pub fn run(allocator: mem.Allocator, options: NewOptions, config: Config) !void 
 fn createCollection(
     allocator: mem.Allocator,
     collection_path: []const u8,
-    collection_name: []const u8,
     no_manifest: bool,
 ) !void {
     try log.info("Creating new collection: {s}", .{collection_path});
@@ -86,5 +85,4 @@ fn createCollection(
         try log.info("  1. Add fragments to {s}/", .{fragments_path});
         try log.info("  2. Create a manifest when ready", .{});
     }
-    _ = collection_name;
 }
