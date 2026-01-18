@@ -31,6 +31,10 @@ pub const Config = struct {
         return null;
     }
 
+    pub fn resolveStore(self: Config, name: []const u8) ?[]const u8 {
+        return resolveStoreByName(self, name);
+    }
+
     pub fn loadWithPath(allocator: mem.Allocator, path: ?[]const u8) !Config {
         return if (path) |p| loadConfigFromPath(allocator, p) else loadConfig(allocator);
     }
@@ -80,6 +84,14 @@ fn getConfigPath(allocator: mem.Allocator) ![]const u8 {
 
     const home = std.posix.getenv("HOME") orelse return Config.Error.HomeNotSet;
     return std.fmt.allocPrint(allocator, "{s}/.config/{s}/{s}", .{ home, Config.app_name, Config.config_filename });
+}
+
+fn resolveStoreByName(config: Config, name: []const u8) ?[]const u8 {
+    for (config.stores) |store| {
+        const store_name = std.fs.path.basename(store.path);
+        if (mem.eql(u8, store_name, name)) return store.path;
+    }
+    return null;
 }
 
 test "defaultStore returns store with default true" {

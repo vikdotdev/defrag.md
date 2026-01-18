@@ -15,6 +15,7 @@ pub const BuildError = error{
     InvalidManifest,
     FragmentNotFound,
     OutputError,
+    StoreNotFound,
 };
 
 pub fn printHelp(version: []const u8) !void {
@@ -132,6 +133,17 @@ fn buildManifest(
 
 /// Build all manifests in stores
 fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config: Config) !void {
+    if (store_filter) |filter| {
+        const store_path = config.resolveStore(filter) orelse {
+            try log.err("Store not found: {s}", .{filter});
+            return BuildError.StoreNotFound;
+        };
+        if (!paths.fileExists(store_path)) {
+            try log.err("Store path does not exist: {s}", .{store_path});
+            return BuildError.StoreNotFound;
+        }
+    }
+
     var built_count: usize = 0;
 
     for (config.stores) |store| {

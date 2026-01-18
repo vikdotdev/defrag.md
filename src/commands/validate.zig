@@ -13,6 +13,7 @@ pub const ValidateError = error{
     ManifestNotFound,
     InvalidManifest,
     ValidationFailed,
+    StoreNotFound,
 };
 
 pub fn printHelp(version: []const u8) !void {
@@ -105,6 +106,17 @@ fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config:
 }
 
 fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config: Config) !void {
+    if (store_filter) |filter| {
+        const store_path = config.resolveStore(filter) orelse {
+            try log.err("Store not found: {s}", .{filter});
+            return ValidateError.StoreNotFound;
+        };
+        if (!paths.fileExists(store_path)) {
+            try log.err("Store path does not exist: {s}", .{store_path});
+            return ValidateError.StoreNotFound;
+        }
+    }
+
     var validated_count: usize = 0;
     var failed_count: usize = 0;
 
