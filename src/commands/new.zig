@@ -12,6 +12,31 @@ pub const NewError = error{
     NoDefaultStore,
 };
 
+pub fn printHelp(version: []const u8) !void {
+    try log.info(
+        \\
+        \\Usage: defrag new <collection_name> [options]
+        \\
+        \\Create a new collection.
+        \\
+        \\Arguments:
+        \\    <collection_name>  Name of the collection to create (required)
+        \\
+        \\Options:
+        \\    -c, --collection   Collection name (alternative to positional)
+        \\    -s, --store <name> Use specific store
+        \\    --no-manifest      Don't create a manifest file
+        \\    --config <path>    Path to config file
+        \\
+        \\Examples:
+        \\    defrag new my-collection
+        \\    defrag new my-collection --store my-store
+        \\    defrag new my-collection --no-manifest
+        \\
+        \\Version: {s}
+    , .{version});
+}
+
 pub fn run(allocator: mem.Allocator, options: NewOptions, config: Config) !void {
     const store_path = options.store orelse config.defaultStore() orelse {
         try log.err("No default store configured", .{});

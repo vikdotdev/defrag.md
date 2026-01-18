@@ -15,6 +15,31 @@ pub const ValidateError = error{
     ValidationFailed,
 };
 
+pub fn printHelp(version: []const u8) !void {
+    try log.info(
+        \\
+        \\Usage: defrag validate <manifest> [options]
+        \\       defrag validate --all [options]
+        \\
+        \\Validate a manifest file.
+        \\
+        \\Arguments:
+        \\    <manifest>         Path to manifest file (or use --all)
+        \\
+        \\Options:
+        \\    -m, --manifest     Path to manifest file
+        \\    -a, --all          Validate all collections in store
+        \\    -s, --store <name> Use specific store
+        \\    --config <path>    Path to config file
+        \\
+        \\Examples:
+        \\    defrag validate path/to/manifest
+        \\    defrag validate --all
+        \\
+        \\Version: {s}
+    , .{version});
+}
+
 pub fn run(allocator: mem.Allocator, options: ValidateOptions, config: Config) !void {
     if (options.all) {
         try validateAllManifests(allocator, options.store, config);

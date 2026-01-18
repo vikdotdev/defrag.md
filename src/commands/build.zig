@@ -17,6 +17,33 @@ pub const BuildError = error{
     OutputError,
 };
 
+pub fn printHelp(version: []const u8) !void {
+    try log.info(
+        \\
+        \\Usage: defrag build <manifest> [options]
+        \\       defrag build --all [options]
+        \\
+        \\Build documentation from a manifest.
+        \\
+        \\Arguments:
+        \\    <manifest>         Path to manifest file (or use --all)
+        \\
+        \\Options:
+        \\    -m, --manifest     Path to manifest file
+        \\    -o, --out <path>   Output file path
+        \\    -a, --all          Build all collections in store
+        \\    -s, --store <name> Use specific store
+        \\    --config <path>    Path to config file
+        \\
+        \\Examples:
+        \\    defrag build path/to/manifest
+        \\    defrag build --manifest path/to/manifest --out output.md
+        \\    defrag build --all
+        \\
+        \\Version: {s}
+    , .{version});
+}
+
 /// Execute the build command
 pub fn run(allocator: mem.Allocator, options: BuildOptions, config: Config) !void {
     if (options.all) {

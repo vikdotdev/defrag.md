@@ -1,10 +1,13 @@
 const std = @import("std");
+const mem = std.mem;
+const build_options = @import("build_options");
 const cli = @import("cli.zig");
 const build_cmd = @import("commands/build.zig");
 const validate_cmd = @import("commands/validate.zig");
 const new_cmd = @import("commands/new.zig");
 const init_cmd = @import("commands/init.zig");
 const build_link_cmd = @import("commands/build_link.zig");
+const help_cmd = @import("commands/help.zig");
 const paths = @import("paths.zig");
 const log = @import("log.zig");
 const manifest = @import("core/manifest.zig");
@@ -14,23 +17,24 @@ const fragment = @import("core/fragment.zig");
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Config = @import("config.zig").Config;
 
-const version = "0.1.0";
+const version = build_options.version;
 
 pub fn main() !void {
     var arena = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
+    const allocator = arena.allocator();
     const args = try std.process.argsAlloc(arena.allocator());
-    const parse_result = cli.parseArgs(args) catch |parse_err| {
-        try printError(parse_err);
-        std.process.exit(1);
+    var parse_ctx = cli.ParseContext{};
+    const parse_result = cli.parseArgs(args, &parse_ctx) catch |parse_err| {
+        try printError(parse_err, parse_ctx);
+        const exit_code: u8 = if (parse_err == cli.ParseError.HelpRequested) 0 else 1;
+        std.process.exit(exit_code);
     };
 
     if (parse_result.command == .help) {
-        try printUsage();
+        try help_cmd.printHelp(version);
         return;
     }
-
-    const allocator = arena.allocator();
 
     if (parse_result.command == .init) {
         init_cmd.run(allocator, parse_result.command.init) catch {
@@ -39,34 +43,29 @@ pub fn main() !void {
         return;
     }
 
-    const config = if (parse_result.config_path) |path|
-        Config.loadFromPath(allocator, path)
-    else
-        Config.load(allocator);
-
-    const loaded_config = config catch |load_err| {
-        try log.err("Failed to load config: {}", .{load_err});
+    const config = Config.loadWithPath(allocator, parse_result.config_path) catch |err| {
+        try log.err("Failed to load config: {}", .{err});
         std.process.exit(1);
     };
 
     switch (parse_result.command) {
         .build => |opts| {
-            build_cmd.run(allocator, opts, loaded_config) catch {
+            build_cmd.run(allocator, opts, config) catch {
                 std.process.exit(1);
             };
         },
         .validate => |opts| {
-            validate_cmd.run(allocator, opts, loaded_config) catch {
+            validate_cmd.run(allocator, opts, config) catch {
                 std.process.exit(1);
             };
         },
         .new => |opts| {
-            new_cmd.run(allocator, opts, loaded_config) catch {
+            new_cmd.run(allocator, opts, config) catch {
                 std.process.exit(1);
             };
         },
         .build_link => |opts| {
-            build_link_cmd.run(allocator, opts, loaded_config) catch {
+            build_link_cmd.run(allocator, opts, config) catch {
                 std.process.exit(1);
             };
         },
@@ -75,49 +74,51 @@ pub fn main() !void {
     }
 }
 
-fn printUsage() !void {
-    const usage =
-        \\defrag - Build and manage AI instruction rulesets
-        \\
-        \\Usage:
-        \\    defrag <command> [options]
-        \\
-        \\Commands:
-        \\    build       Build documentation from a manifest
-        \\    validate    Validate a manifest
-        \\    new         Create a new collection
-        \\    init        Create a new store
-        \\    build-link  Build and symlink output
-        \\    help        Show this help message
-        \\
-        \\Examples:
-        \\    defrag build path/to/manifest
-        \\    defrag build --manifest path/to/manifest --out output.md
-        \\    defrag build --all --config custom/config.json
-        \\    defrag new my-collection
-        \\    defrag init ~/my-store
-        \\
-        \\Version:
-    ;
-    try log.info("{s} {s}", .{ usage, version });
-}
-
-fn printError(parse_err: cli.ParseError) !void {
+fn printError(parse_err: cli.ParseError, parse_ctx: cli.ParseContext) !void {
     switch (parse_err) {
         cli.ParseError.MissingCommand => {
             try log.err("Missing command", .{});
-            try printUsage();
+            try help_cmd.printHelp(version);
         },
         cli.ParseError.UnknownCommand => {
-            try log.err("Unknown command", .{});
-            try printUsage();
+            try log.err("Unknown command: {s}", .{parse_ctx.command_name orelse "unknown"});
+            try help_cmd.printHelp(version);
         },
         cli.ParseError.MissingArgument => {
             try log.err("Missing required argument", .{});
+            if (parse_ctx.command_name) |cmd| {
+                try printCommandHelp(cmd);
+            }
         },
         cli.ParseError.UnknownOption => {
             try log.err("Unknown option", .{});
+            if (parse_ctx.command_name) |cmd| {
+                try printCommandHelp(cmd);
+            }
         },
+        cli.ParseError.HelpRequested => {
+            if (parse_ctx.command_name) |cmd| {
+                try printCommandHelp(cmd);
+            } else {
+                try help_cmd.printHelp(version);
+            }
+        },
+    }
+}
+
+fn printCommandHelp(command: []const u8) !void {
+    if (mem.eql(u8, command, "init")) {
+        try init_cmd.printHelp(version);
+    } else if (mem.eql(u8, command, "build")) {
+        try build_cmd.printHelp(version);
+    } else if (mem.eql(u8, command, "validate")) {
+        try validate_cmd.printHelp(version);
+    } else if (mem.eql(u8, command, "new")) {
+        try new_cmd.printHelp(version);
+    } else if (mem.eql(u8, command, "build-link")) {
+        try build_link_cmd.printHelp(version);
+    } else {
+        try help_cmd.printHelp(version);
     }
 }
 
@@ -130,6 +131,7 @@ test {
     _ = validate_cmd;
     _ = new_cmd;
     _ = init_cmd;
+    _ = help_cmd;
     _ = build_link_cmd;
     _ = paths;
     _ = manifest;

@@ -13,6 +13,25 @@ pub const BuildLinkError = error{
     LinkFailed,
 };
 
+pub fn printHelp(version: []const u8) !void {
+    try log.info(
+        \\
+        \\Usage: defrag build-link --manifest <path> --link <path>
+        \\
+        \\Build and create a symlink to the output.
+        \\
+        \\Options:
+        \\    -m, --manifest <path>  Path to manifest file (required)
+        \\    -l, --link <path>      Path for symlink (required)
+        \\    --config <path>        Path to config file
+        \\
+        \\Examples:
+        \\    defrag build-link --manifest ./manifest --link ./RULES.md
+        \\
+        \\Version: {s}
+    , .{version});
+}
+
 pub fn run(allocator: mem.Allocator, options: BuildLinkOptions, config: Config) !void {
     // Build the manifest first
     const build_options = BuildOptions{

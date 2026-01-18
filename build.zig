@@ -1,8 +1,13 @@
 const std = @import("std");
+const build_zon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // Build options (version from build.zig.zon)
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", build_zon.version);
 
     // Build cmark C library
     const cmark_dep = b.dependency("cmark", .{});
@@ -56,6 +61,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "build_options", .module = options.createModule() },
+        },
     });
 
     // Add cmark include path and link library to root module
@@ -84,6 +92,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "build_options", .module = options.createModule() },
+        },
     });
     test_module.addIncludePath(cmark_dep.path("src"));
     test_module.addIncludePath(b.path("src/cmark_compat"));

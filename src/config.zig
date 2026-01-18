@@ -31,12 +31,8 @@ pub const Config = struct {
         return null;
     }
 
-    pub fn load(allocator: mem.Allocator) !Config {
-        return loadConfig(allocator);
-    }
-
-    pub fn loadFromPath(allocator: mem.Allocator, path: []const u8) !Config {
-        return loadConfigFromPath(allocator, path);
+    pub fn loadWithPath(allocator: mem.Allocator, path: ?[]const u8) !Config {
+        return if (path) |p| loadConfigFromPath(allocator, p) else loadConfig(allocator);
     }
 
     pub fn defaultPath(allocator: mem.Allocator) ![]const u8 {

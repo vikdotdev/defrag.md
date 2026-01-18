@@ -12,6 +12,27 @@ pub const InitError = error{
     CreateFailed,
 };
 
+pub fn printHelp(version: []const u8) !void {
+    try log.info(
+        \\
+        \\Usage: defrag init <store_path> [options]
+        \\
+        \\Create a new store for collections.
+        \\
+        \\Arguments:
+        \\    <store_path>       Path where the store will be created (required)
+        \\
+        \\Options:
+        \\    --config <path>    Path to config file (default: ~/.config/defrag/config.json)
+        \\
+        \\Examples:
+        \\    defrag init ~/my-rules
+        \\    defrag init ./store --config custom.json
+        \\
+        \\Version: {s}
+    , .{version});
+}
+
 pub fn run(allocator: mem.Allocator, options: InitOptions) !void {
     const store_path = options.store_path;
 

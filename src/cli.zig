@@ -6,6 +6,10 @@ pub const ParseResult = struct {
     config_path: ?[]const u8 = null,
 };
 
+pub const ParseContext = struct {
+    command_name: ?[]const u8 = null,
+};
+
 pub const Command = union(enum) {
     build: BuildOptions,
     validate: ValidateOptions,
@@ -49,9 +53,10 @@ pub const ParseError = error{
     UnknownCommand,
     MissingArgument,
     UnknownOption,
+    HelpRequested,
 };
 
-pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
+pub fn parseArgs(args: []const []const u8, parse_ctx: *ParseContext) ParseError!ParseResult {
     var result = ParseResult{ .command = undefined };
 
     if (args.len < 2) {
@@ -60,6 +65,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!ParseResult {
 
     const command = args[1];
     const rest = args[2..];
+
+    parse_ctx.command_name = command;
 
     for (rest, 0..) |arg, i| {
         if (mem.eql(u8, arg, "--config")) {
@@ -99,7 +106,9 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--config")) {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return ParseError.HelpRequested;
+        } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
@@ -139,7 +148,9 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--config")) {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return ParseError.HelpRequested;
+        } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
@@ -177,7 +188,9 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--config")) {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return ParseError.HelpRequested;
+        } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--collection") or mem.eql(u8, arg, "-c")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
@@ -213,7 +226,9 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--config")) {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return ParseError.HelpRequested;
+        } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
@@ -246,7 +261,9 @@ fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
     while (i < args.len) : (i += 1) {
         const arg = args[i];
 
-        if (mem.eql(u8, arg, "--config")) {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return ParseError.HelpRequested;
+        } else if (mem.eql(u8, arg, "--config")) {
             if (i + 1 >= args.len) return ParseError.MissingArgument;
             i += 1;
             opts.config_path = args[i];
@@ -263,80 +280,98 @@ fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
 }
 
 test "parseArgs help" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "help" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .help);
     try std.testing.expect(result.config_path == null);
 }
 
 test "parseArgs build with manifest" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "build", "--manifest", "path/to/manifest" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .build);
     try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path.?);
 }
 
 test "parseArgs build with positional" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "build", "path/to/manifest" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .build);
     try std.testing.expectEqualStrings("path/to/manifest", result.command.build.manifest_path.?);
 }
 
 test "parseArgs build --all" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "build", "--all" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .build);
     try std.testing.expect(result.command.build.all);
 }
 
 test "parseArgs build --all -s store" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "build", "--all", "-s", "my-store" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .build);
     try std.testing.expect(result.command.build.all);
     try std.testing.expectEqualStrings("my-store", result.command.build.store.?);
 }
 
 test "parseArgs validate --all -s store" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "validate", "--all", "-s", "my-store" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .validate);
     try std.testing.expect(result.command.validate.all);
     try std.testing.expectEqualStrings("my-store", result.command.validate.store.?);
 }
 
 test "parseArgs new with collection" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "new", "--collection", "my-collection", "--no-manifest" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .new);
     try std.testing.expectEqualStrings("my-collection", result.command.new.collection_name);
     try std.testing.expect(result.command.new.no_manifest);
 }
 
 test "parseArgs new -s store" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "new", "my-collection", "-s", "my-store" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .new);
     try std.testing.expectEqualStrings("my-collection", result.command.new.collection_name);
     try std.testing.expectEqualStrings("my-store", result.command.new.store.?);
 }
 
 test "parseArgs with config" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "build", "--all", "--config", "test/config.json" };
-    const result = try parseArgs(args);
+    const result = try parseArgs(args, &parse_ctx);
     try std.testing.expect(result.command == .build);
     try std.testing.expectEqualStrings("test/config.json", result.config_path.?);
 }
 
 test "parseArgs missing command" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{"defrag"};
-    const result = parseArgs(args);
+    const result = parseArgs(args, &parse_ctx);
     try std.testing.expectError(ParseError.MissingCommand, result);
 }
 
 test "parseArgs unknown command" {
+    var parse_ctx = ParseContext{};
     const args = &[_][]const u8{ "defrag", "unknown" };
-    const result = parseArgs(args);
+    const result = parseArgs(args, &parse_ctx);
     try std.testing.expectError(ParseError.UnknownCommand, result);
+}
+
+test "parseArgs context captures command name" {
+    var parse_ctx = ParseContext{};
+    const args = &[_][]const u8{ "defrag", "init" };
+    _ = parseArgs(args, &parse_ctx) catch {};
+    try std.testing.expectEqualStrings("init", parse_ctx.command_name.?);
 }
