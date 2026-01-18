@@ -124,7 +124,7 @@ fn updateConfig(allocator: mem.Allocator, store_path: []const u8, custom_config_
 
     var new_stores = try allocator.alloc(Store, parsed.value.stores.len + 1);
     @memcpy(new_stores[0..parsed.value.stores.len], parsed.value.stores);
-    new_stores[parsed.value.stores.len] = .{ .path = abs_store, .default = false };
+    new_stores[parsed.value.stores.len] = .{ .path = abs_store };
 
     try writeConfig(allocator, config_path, new_stores);
     try log.info("Updated: {s}", .{config_path});
@@ -143,7 +143,10 @@ fn createNewConfig(allocator: mem.Allocator, config_path: []const u8, store_path
 
 fn writeConfig(allocator: mem.Allocator, config_path: []const u8, stores: []const Store) !void {
     const data = Config{ .stores = stores };
-    const json = std.json.Stringify.valueAlloc(allocator, data, .{ .whitespace = .indent_2 }) catch return;
+    const json = std.json.Stringify.valueAlloc(allocator, data, .{
+        .whitespace = .indent_2,
+        .emit_null_optional_fields = false,
+    }) catch return;
     paths.writeFile(config_path, json) catch return;
 }
 

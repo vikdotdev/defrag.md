@@ -4,7 +4,7 @@ const paths = @import("paths.zig");
 
 pub const Store = struct {
     path: []const u8,
-    default: bool = false,
+    default: ?bool = null,
 };
 
 pub const Config = struct {
@@ -25,7 +25,7 @@ pub const Config = struct {
 
     pub fn defaultStore(self: Config) ?[]const u8 {
         for (self.stores) |store| {
-            if (store.default) return store.path;
+            if (store.default orelse false) return store.path;
         }
         if (self.stores.len > 0) return self.stores[0].path;
         return null;
