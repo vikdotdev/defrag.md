@@ -38,10 +38,16 @@ pub fn printHelp(version: []const u8) !void {
 }
 
 pub fn run(allocator: mem.Allocator, options: NewOptions, config: Config) !void {
-    const store_path = options.store orelse config.defaultStore() orelse {
-        try log.err("No default store configured", .{});
-        return NewError.NoDefaultStore;
-    };
+    const store_path = if (options.store) |filter|
+        resolveStore(config, filter) orelse {
+            try log.err("Store not found: {s}", .{filter});
+            return NewError.NoDefaultStore;
+        }
+    else
+        config.defaultStore() orelse {
+            try log.err("No default store configured", .{});
+            return NewError.NoDefaultStore;
+        };
 
     const collection_path = try std.fs.path.join(allocator, &.{
         store_path,
@@ -97,4 +103,12 @@ fn createCollection(
         return NewError.CreateFailed;
     };
     try log.info("Created: {s}", .{example_path});
+}
+
+fn resolveStore(config: Config, filter: []const u8) ?[]const u8 {
+    for (config.stores) |store| {
+        const store_name = std.fs.path.basename(store.path);
+        if (mem.eql(u8, store_name, filter)) return store.path;
+    }
+    return null;
 }

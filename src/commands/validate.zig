@@ -110,7 +110,7 @@ fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, con
 
     for (config.stores) |store| {
         if (store_filter) |filter| {
-            if (!mem.eql(u8, store.path, filter)) continue;
+            if (!storeMatches(store.path, filter)) continue;
         }
 
         const collections_path = try std.fs.path.join(allocator, &.{ store.path, Config.collections_dir });
@@ -158,3 +158,7 @@ fn validateCollectionManifests(
     }
 }
 
+fn storeMatches(store_path: []const u8, filter: []const u8) bool {
+    const store_name = std.fs.path.basename(store_path);
+    return mem.eql(u8, store_name, filter);
+}

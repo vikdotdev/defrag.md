@@ -418,7 +418,12 @@ test "new: basic creation" {
     defer allocator.free(store_path);
     defer t.cleanupDir(store_path);
 
-    var result = try t.new(allocator, "my-collection", store_path);
+    const config_path = try t.tmpPath(allocator, "test-new-config.json");
+    defer allocator.free(config_path);
+    defer t.cleanup(config_path);
+    try t.writeTestConfig(allocator, config_path, store_path);
+
+    var result = try t.newWithConfig(allocator, "my-collection", config_path);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -455,11 +460,16 @@ test "new: collection exists error" {
     defer allocator.free(store_path);
     defer t.cleanupDir(store_path);
 
+    const config_path = try t.tmpPath(allocator, "test-exists-config.json");
+    defer allocator.free(config_path);
+    defer t.cleanup(config_path);
+    try t.writeTestConfig(allocator, config_path, store_path);
+
     const collection_path = try std.fs.path.join(allocator, &.{ store_path, "collections", "existing" });
     defer allocator.free(collection_path);
     try std.fs.cwd().makePath(collection_path);
 
-    var result = try t.new(allocator, "existing", store_path);
+    var result = try t.newWithConfig(allocator, "existing", config_path);
     defer result.deinit();
 
     try result.expectFailure();
@@ -471,7 +481,12 @@ test "new: no-manifest option" {
     defer allocator.free(store_path);
     defer t.cleanupDir(store_path);
 
-    var result = try t.newNoManifest(allocator, "no-manifest-collection", store_path);
+    const config_path = try t.tmpPath(allocator, "test-no-manifest-config.json");
+    defer allocator.free(config_path);
+    defer t.cleanup(config_path);
+    try t.writeTestConfig(allocator, config_path, store_path);
+
+    var result = try t.newNoManifestWithConfig(allocator, "no-manifest-collection", config_path);
     defer result.deinit();
 
     try result.expectSuccess();

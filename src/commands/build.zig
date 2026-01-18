@@ -136,7 +136,7 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
 
     for (config.stores) |store| {
         if (store_filter) |filter| {
-            if (!mem.eql(u8, store.path, filter)) continue;
+            if (!storeMatches(store.path, filter)) continue;
         }
 
         const collections_path = try std.fs.path.join(allocator, &.{ store.path, Config.collections_dir });
@@ -215,6 +215,11 @@ fn getManifestPrefix(manifest_path: []const u8) []const u8 {
         return basename[0 .. basename.len - Config.manifest_ext.len];
     }
     return basename;
+}
+
+fn storeMatches(store_path: []const u8, filter: []const u8) bool {
+    const store_name = std.fs.path.basename(store_path);
+    return mem.eql(u8, store_name, filter);
 }
 
 test "defaultOutputPath with .manifest extension" {

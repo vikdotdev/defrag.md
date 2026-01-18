@@ -106,12 +106,20 @@ pub fn validate(allocator: Allocator, manifest: []const u8) !RunResult {
     return runDefrag(allocator, &.{ "validate", "--manifest", manifest, "--config", fixtures_config });
 }
 
-pub fn new(allocator: Allocator, name: []const u8, store: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", name, "-s", store, "--config", fixtures_config });
+pub fn newWithConfig(allocator: Allocator, name: []const u8, config_path: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", name, "--config", config_path });
 }
 
-pub fn newNoManifest(allocator: Allocator, name: []const u8, store: []const u8) !RunResult {
-    return runDefrag(allocator, &.{ "new", "--no-manifest", name, "-s", store, "--config", fixtures_config });
+pub fn newNoManifestWithConfig(allocator: Allocator, name: []const u8, config_path: []const u8) !RunResult {
+    return runDefrag(allocator, &.{ "new", "--no-manifest", name, "--config", config_path });
+}
+
+pub fn writeTestConfig(allocator: Allocator, config_path: []const u8, store_path: []const u8) !void {
+    const content = try std.fmt.allocPrint(allocator, "{{\"stores\": [{{\"path\": \"{s}\", \"default\": true}}]}}", .{store_path});
+    defer allocator.free(content);
+    const file = try std.fs.cwd().createFile(config_path, .{});
+    defer file.close();
+    try file.writeAll(content);
 }
 
 pub fn init(allocator: Allocator, store_path: []const u8, config_path: []const u8) !RunResult {
