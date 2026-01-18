@@ -71,8 +71,28 @@ fn buildManifest(
     };
 
     // Parse manifest
-    const manifest = Manifest.parse(allocator, manifest_content) catch {
-        try log.err("Invalid manifest: {s}", .{manifest_path});
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = Manifest.parse(allocator, manifest_content, &parse_ctx) catch |err| {
+        switch (err) {
+            Manifest.Error.MissingFragmentsSection => {
+                try log.err("Missing [fragments] section in: {s}", .{manifest_path});
+            },
+            Manifest.Error.InvalidNesting => {
+                try log.err("Line {d}: missing '|' prefix: {s}", .{ parse_ctx.error_line, parse_ctx.error_content });
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            Manifest.Error.EmptyFragmentName => {
+                try log.err("Line {d}: empty fragment name", .{parse_ctx.error_line});
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            Manifest.Error.TooManyLevels => {
+                try log.err("Line {d}: too many levels (max 6): {s}", .{ parse_ctx.error_line, parse_ctx.error_content });
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            else => {
+                try log.err("Invalid manifest: {s}", .{manifest_path});
+            },
+        }
         return BuildError.InvalidManifest;
     };
 
@@ -94,8 +114,7 @@ fn buildManifest(
             collection,
             manifest,
             entry.level,
-        ) catch |process_err| {
-            try log.warn("Failed to process fragment {s}: {}", .{ entry.name, process_err });
+        ) catch {
             continue;
         };
 
@@ -152,8 +171,7 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
                 store.path,
                 config,
                 &built_count,
-            ) catch |err| {
-                try log.warn("Failed to process collection {s}: {}", .{ entry.name, err });
+            ) catch {
                 continue;
             };
         }
@@ -187,8 +205,7 @@ fn buildCollectionManifests(
         const output_name = try std.fmt.allocPrint(allocator, "{s}.{s}{s}", .{ collection_name, prefix, paths.md_ext });
         const output_path = try std.fs.path.join(allocator, &.{ store_path, Config.build_dir, output_name });
 
-        buildManifest(allocator, manifest_path, output_path, config) catch |err| {
-            try log.warn("Failed to build {s}: {}", .{ manifest_path, err });
+        buildManifest(allocator, manifest_path, output_path, config) catch {
             continue;
         };
         built_count.* += 1;

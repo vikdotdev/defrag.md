@@ -54,8 +54,28 @@ fn validateManifest(allocator: mem.Allocator, manifest_path: []const u8, config:
         return ValidateError.ManifestNotFound;
     };
 
-    const manifest = Manifest.parse(allocator, manifest_content) catch {
-        try log.err("Invalid manifest: {s}", .{manifest_path});
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = Manifest.parse(allocator, manifest_content, &parse_ctx) catch |err| {
+        switch (err) {
+            Manifest.Error.MissingFragmentsSection => {
+                try log.err("Missing [fragments] section in: {s}", .{manifest_path});
+            },
+            Manifest.Error.InvalidNesting => {
+                try log.err("Line {d}: missing '|' prefix: {s}", .{ parse_ctx.error_line, parse_ctx.error_content });
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            Manifest.Error.EmptyFragmentName => {
+                try log.err("Line {d}: empty fragment name", .{parse_ctx.error_line});
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            Manifest.Error.TooManyLevels => {
+                try log.err("Line {d}: too many levels (max 6): {s}", .{ parse_ctx.error_line, parse_ctx.error_content });
+                try log.err("  in: {s}", .{manifest_path});
+            },
+            else => {
+                try log.err("Invalid manifest: {s}", .{manifest_path});
+            },
+        }
         return ValidateError.InvalidManifest;
     };
 

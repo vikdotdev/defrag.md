@@ -21,6 +21,11 @@ pub const Manifest = struct {
         TooManyLevels,
     };
 
+    pub const ParseContext = struct {
+        error_line: usize = 0,
+        error_content: []const u8 = "",
+    };
+
     pub const FragmentEntry = struct {
         level: u8,
         name: []const u8,
@@ -34,13 +39,12 @@ pub const Manifest = struct {
         };
     }
 
-    pub fn parse(allocator: mem.Allocator, content: []const u8) !Manifest {
-        return parseManifest(allocator, content);
+    pub fn parse(allocator: mem.Allocator, content: []const u8, parse_ctx: *ParseContext) !Manifest {
+        return parseManifest(allocator, content, parse_ctx);
     }
 };
 
-fn parseManifest(allocator: mem.Allocator, content: []const u8) !Manifest {
-
+fn parseManifest(allocator: mem.Allocator, content: []const u8, parse_ctx: *Manifest.ParseContext) !Manifest {
     var manifest = Manifest.init();
     var fragments: ArrayList(Manifest.FragmentEntry) = .empty;
 
@@ -79,7 +83,11 @@ fn parseManifest(allocator: mem.Allocator, content: []const u8) !Manifest {
         }
 
         if (in_fragments) {
-            const entry = try parseFragmentLine(trimmed, line_number, prev_level);
+            const entry = parseFragmentLine(trimmed, line_number, prev_level) catch |err| {
+                parse_ctx.error_line = line_number;
+                parse_ctx.error_content = trimmed;
+                return err;
+            };
             prev_level = entry.level;
             try fragments.append(allocator, entry);
         }
@@ -177,7 +185,8 @@ test "Manifest.parse simple" {
         \\| setup
     ;
 
-    const manifest = try Manifest.parse(arena.allocator(), content);
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = try Manifest.parse(arena.allocator(), content, &parse_ctx);
 
     try std.testing.expectEqualStrings("{fragment_id}", manifest.heading_wrapper_template);
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
@@ -197,7 +206,8 @@ test "Manifest.parse nested fragments" {
         \\| sibling
     ;
 
-    const manifest = try Manifest.parse(arena.allocator(), content);
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = try Manifest.parse(arena.allocator(), content, &parse_ctx);
 
     try std.testing.expectEqual(@as(usize, 4), manifest.fragments.len);
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
@@ -218,7 +228,8 @@ test "Manifest.parse with comments" {
         \\| setup
     ;
 
-    const manifest = try Manifest.parse(arena.allocator(), content);
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = try Manifest.parse(arena.allocator(), content, &parse_ctx);
 
     try std.testing.expectEqual(@as(usize, 2), manifest.fragments.len);
     try std.testing.expectEqualStrings("intro", manifest.fragments[0].name);
@@ -234,7 +245,8 @@ test "Manifest.parse auto-correct invalid nesting" {
         \\||| level3_after_1
     ;
 
-    const manifest = try Manifest.parse(arena.allocator(), content);
+    var parse_ctx = Manifest.ParseContext{};
+    const manifest = try Manifest.parse(arena.allocator(), content, &parse_ctx);
 
     try std.testing.expectEqual(@as(u8, 1), manifest.fragments[0].level);
     try std.testing.expectEqual(@as(u8, 2), manifest.fragments[1].level);
@@ -249,6 +261,7 @@ test "Manifest.parse missing fragments section" {
         \\title = "{name}"
     ;
 
-    const result = Manifest.parse(arena.allocator(), content);
+    var parse_ctx = Manifest.ParseContext{};
+    const result = Manifest.parse(arena.allocator(), content, &parse_ctx);
     try std.testing.expectError(Manifest.Error.MissingFragmentsSection, result);
 }
