@@ -8,6 +8,8 @@ pub const ParseResult = struct {
 
 pub const ParseContext = struct {
     command_name: ?[]const u8 = null,
+    bad_option: ?[]const u8 = null,
+    missing_arg: ?[]const u8 = null,
 };
 
 pub const Command = union(enum) {
@@ -51,7 +53,9 @@ pub const BuildLinkOptions = struct {
 pub const ParseError = error{
     MissingCommand,
     UnknownCommand,
-    MissingArgument,
+    MissingPositional,
+    MissingOptionValue,
+    MissingOption,
     UnknownOption,
     HelpRequested,
 };
@@ -70,22 +74,25 @@ pub fn parseArgs(args: []const []const u8, parse_ctx: *ParseContext) ParseError!
 
     for (rest, 0..) |arg, i| {
         if (mem.eql(u8, arg, "--config")) {
-            if (i + 1 >= rest.len) return ParseError.MissingArgument;
+            if (i + 1 >= rest.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             result.config_path = rest[i + 1];
             break;
         }
     }
 
     if (mem.eql(u8, command, "build")) {
-        result.command = .{ .build = try parseBuildOptions(rest) };
+        result.command = .{ .build = try parseBuildOptions(rest, parse_ctx) };
     } else if (mem.eql(u8, command, "validate")) {
-        result.command = .{ .validate = try parseValidateOptions(rest) };
+        result.command = .{ .validate = try parseValidateOptions(rest, parse_ctx) };
     } else if (mem.eql(u8, command, "new")) {
-        result.command = .{ .new = try parseNewOptions(rest) };
+        result.command = .{ .new = try parseNewOptions(rest, parse_ctx) };
     } else if (mem.eql(u8, command, "init")) {
-        result.command = .{ .init = try parseInitOptions(rest) };
+        result.command = .{ .init = try parseInitOptions(rest, parse_ctx) };
     } else if (mem.eql(u8, command, "build-link")) {
-        result.command = .{ .build_link = try parseBuildLinkOptions(rest) };
+        result.command = .{ .build_link = try parseBuildLinkOptions(rest, parse_ctx) };
     } else if (mem.eql(u8, command, "help") or
         mem.eql(u8, command, "--help") or
         mem.eql(u8, command, "-h"))
@@ -98,7 +105,7 @@ pub fn parseArgs(args: []const []const u8, parse_ctx: *ParseContext) ParseError!
     return result;
 }
 
-fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
+fn parseBuildOptions(args: []const []const u8, parse_ctx: *ParseContext) ParseError!BuildOptions {
     var opts = BuildOptions{};
     var has_manifest = false;
 
@@ -111,21 +118,31 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
         } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.manifest_path = args[i];
             has_manifest = true;
         } else if (mem.eql(u8, arg, "--out") or mem.eql(u8, arg, "-o")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.output_path = args[i];
         } else if (mem.eql(u8, arg, "--all") or mem.eql(u8, arg, "-a")) {
             opts.all = true;
         } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.store = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
+            parse_ctx.bad_option = arg;
             return ParseError.UnknownOption;
         } else {
             opts.manifest_path = arg;
@@ -134,13 +151,14 @@ fn parseBuildOptions(args: []const []const u8) ParseError!BuildOptions {
     }
 
     if (!has_manifest and !opts.all) {
-        return ParseError.MissingArgument;
+        parse_ctx.missing_arg = "manifest";
+        return ParseError.MissingPositional;
     }
 
     return opts;
 }
 
-fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
+fn parseValidateOptions(args: []const []const u8, parse_ctx: *ParseContext) ParseError!ValidateOptions {
     var opts = ValidateOptions{};
     var has_manifest = false;
 
@@ -153,17 +171,24 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
         } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.manifest_path = args[i];
             has_manifest = true;
         } else if (mem.eql(u8, arg, "--all") or mem.eql(u8, arg, "-a")) {
             opts.all = true;
         } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.store = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
+            parse_ctx.bad_option = arg;
             return ParseError.UnknownOption;
         } else {
             opts.manifest_path = arg;
@@ -172,13 +197,14 @@ fn parseValidateOptions(args: []const []const u8) ParseError!ValidateOptions {
     }
 
     if (!has_manifest and !opts.all) {
-        return ParseError.MissingArgument;
+        parse_ctx.missing_arg = "manifest";
+        return ParseError.MissingPositional;
     }
 
     return opts;
 }
 
-fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
+fn parseNewOptions(args: []const []const u8, parse_ctx: *ParseContext) ParseError!NewOptions {
     var opts = NewOptions{
         .collection_name = undefined,
     };
@@ -193,17 +219,24 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
         } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--collection") or mem.eql(u8, arg, "-c")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.collection_name = args[i];
             has_name = true;
         } else if (mem.eql(u8, arg, "--store") or mem.eql(u8, arg, "-s")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.store = args[i];
         } else if (mem.eql(u8, arg, "--no-manifest")) {
             opts.no_manifest = true;
         } else if (mem.startsWith(u8, arg, "-")) {
+            parse_ctx.bad_option = arg;
             return ParseError.UnknownOption;
         } else {
             opts.collection_name = arg;
@@ -212,13 +245,14 @@ fn parseNewOptions(args: []const []const u8) ParseError!NewOptions {
     }
 
     if (!has_name) {
-        return ParseError.MissingArgument;
+        parse_ctx.missing_arg = "collection_name";
+        return ParseError.MissingPositional;
     }
 
     return opts;
 }
 
-fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
+fn parseBuildLinkOptions(args: []const []const u8, parse_ctx: *ParseContext) ParseError!BuildLinkOptions {
     var manifest_path: ?[]const u8 = null;
     var link_path: ?[]const u8 = null;
 
@@ -231,20 +265,32 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
         } else if (mem.eql(u8, arg, "--config")) {
             i += 1;
         } else if (mem.eql(u8, arg, "--manifest") or mem.eql(u8, arg, "-m")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             manifest_path = args[i];
         } else if (mem.eql(u8, arg, "--link") or mem.eql(u8, arg, "-l")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             link_path = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
+            parse_ctx.bad_option = arg;
             return ParseError.UnknownOption;
         }
     }
 
-    if (manifest_path == null or link_path == null) {
-        return ParseError.MissingArgument;
+    if (manifest_path == null) {
+        parse_ctx.missing_arg = "--manifest";
+        return ParseError.MissingOption;
+    }
+    if (link_path == null) {
+        parse_ctx.missing_arg = "--link";
+        return ParseError.MissingOption;
     }
 
     return BuildLinkOptions{
@@ -253,7 +299,7 @@ fn parseBuildLinkOptions(args: []const []const u8) ParseError!BuildLinkOptions {
     };
 }
 
-fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
+fn parseInitOptions(args: []const []const u8, parse_ctx: *ParseContext) ParseError!InitOptions {
     var opts = InitOptions{ .store_path = undefined };
     var has_path = false;
 
@@ -264,10 +310,14 @@ fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
         if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
             return ParseError.HelpRequested;
         } else if (mem.eql(u8, arg, "--config")) {
-            if (i + 1 >= args.len) return ParseError.MissingArgument;
+            if (i + 1 >= args.len) {
+                parse_ctx.missing_arg = arg;
+                return ParseError.MissingOptionValue;
+            }
             i += 1;
             opts.config_path = args[i];
         } else if (mem.startsWith(u8, arg, "-")) {
+            parse_ctx.bad_option = arg;
             return ParseError.UnknownOption;
         } else {
             opts.store_path = arg;
@@ -275,7 +325,10 @@ fn parseInitOptions(args: []const []const u8) ParseError!InitOptions {
         }
     }
 
-    if (!has_path) return ParseError.MissingArgument;
+    if (!has_path) {
+        parse_ctx.missing_arg = "store_path";
+        return ParseError.MissingPositional;
+    }
     return opts;
 }
 

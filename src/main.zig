@@ -84,14 +84,42 @@ fn printError(parse_err: cli.ParseError, parse_ctx: cli.ParseContext) !void {
             try log.err("Unknown command: {s}", .{parse_ctx.command_name orelse "unknown"});
             try help_cmd.printHelp(version);
         },
-        cli.ParseError.MissingArgument => {
-            try log.err("Missing required argument", .{});
+        cli.ParseError.MissingPositional => {
+            if (parse_ctx.missing_arg) |arg| {
+                try log.err("Missing argument: <{s}>", .{arg});
+            } else {
+                try log.err("Missing required argument", .{});
+            }
+            if (parse_ctx.command_name) |cmd| {
+                try printCommandHelp(cmd);
+            }
+        },
+        cli.ParseError.MissingOptionValue => {
+            if (parse_ctx.missing_arg) |arg| {
+                try log.err("Missing value for {s}", .{arg});
+            } else {
+                try log.err("Missing option value", .{});
+            }
+            if (parse_ctx.command_name) |cmd| {
+                try printCommandHelp(cmd);
+            }
+        },
+        cli.ParseError.MissingOption => {
+            if (parse_ctx.missing_arg) |arg| {
+                try log.err("Missing option: {s}", .{arg});
+            } else {
+                try log.err("Missing required option", .{});
+            }
             if (parse_ctx.command_name) |cmd| {
                 try printCommandHelp(cmd);
             }
         },
         cli.ParseError.UnknownOption => {
-            try log.err("Unknown option", .{});
+            if (parse_ctx.bad_option) |opt| {
+                try log.err("Unknown option: {s}", .{opt});
+            } else {
+                try log.err("Unknown option", .{});
+            }
             if (parse_ctx.command_name) |cmd| {
                 try printCommandHelp(cmd);
             }
