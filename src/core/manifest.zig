@@ -22,8 +22,11 @@ pub const Manifest = struct {
     };
 
     pub const ParseContext = struct {
-        error_line: usize = 0,
-        error_content: []const u8 = "",
+        error_message: ?[]const u8 = null,
+
+        pub fn setError(self: *ParseContext, allocator: mem.Allocator, comptime fmt: []const u8, args: anytype) void {
+            self.error_message = std.fmt.allocPrint(allocator, fmt, args) catch null;
+        }
     };
 
     pub const FragmentEntry = struct {
@@ -83,17 +86,14 @@ fn parseManifest(allocator: mem.Allocator, content: []const u8, parse_ctx: *Mani
         }
 
         if (in_fragments) {
-            const entry = parseFragmentLine(trimmed, line_number, prev_level) catch |err| {
-                parse_ctx.error_line = line_number;
-                parse_ctx.error_content = trimmed;
-                return err;
-            };
+            const entry = try parseFragmentLine(allocator, parse_ctx, trimmed, line_number, prev_level);
             prev_level = entry.level;
             try fragments.append(allocator, entry);
         }
     }
 
     if (!in_fragments and fragments.items.len == 0) {
+        parse_ctx.setError(allocator, "Missing [fragments] section", .{});
         return Manifest.Error.MissingFragmentsSection;
     }
 
@@ -122,7 +122,13 @@ fn parseOption(line: []const u8) ?KeyValue {
     };
 }
 
-fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Manifest.FragmentEntry {
+fn parseFragmentLine(
+    allocator: mem.Allocator,
+    parse_ctx: *Manifest.ParseContext,
+    line: []const u8,
+    line_number: usize,
+    prev_level: u8,
+) !Manifest.FragmentEntry {
     var level: u8 = 0;
     var i: usize = 0;
     while (i < line.len and line[i] == '|') : (i += 1) {
@@ -130,9 +136,11 @@ fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Mani
     }
 
     if (level == 0) {
+        parse_ctx.setError(allocator, "Line {d}: missing '|' prefix: {s}", .{ line_number, line });
         return Manifest.Error.InvalidNesting;
     }
     if (level > 6) {
+        parse_ctx.setError(allocator, "Line {d}: too many levels (max 6): {s}", .{ line_number, line });
         return Manifest.Error.TooManyLevels;
     }
 
@@ -142,6 +150,7 @@ fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Mani
 
     const name = std.mem.trim(u8, line[i..], " \t");
     if (name.len == 0) {
+        parse_ctx.setError(allocator, "Line {d}: empty fragment name", .{line_number});
         return Manifest.Error.EmptyFragmentName;
     }
 
@@ -152,6 +161,7 @@ fn parseFragmentLine(line: []const u8, line_number: usize, prev_level: u8) !Mani
         name;
 
     if (clean_name.len == 0) {
+        parse_ctx.setError(allocator, "Line {d}: empty fragment name", .{line_number});
         return Manifest.Error.EmptyFragmentName;
     }
 
