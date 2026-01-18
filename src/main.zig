@@ -431,7 +431,7 @@ test "new: basic creation" {
     defer allocator.free(fragments_dir);
     try t.expectDirExists(fragments_dir);
 
-    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "manifest" });
+    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "default.manifest" });
     defer allocator.free(manifest_path);
     try t.expectFileExists(manifest_path);
 
@@ -480,7 +480,7 @@ test "new: no-manifest option" {
     defer allocator.free(collection_path);
     try t.expectDirExists(collection_path);
 
-    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "manifest" });
+    const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "default.manifest" });
     defer allocator.free(manifest_path);
     try t.expectFileNotExists(manifest_path);
 }

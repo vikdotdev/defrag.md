@@ -62,8 +62,6 @@ fn createCollection(
     collection_path: []const u8,
     no_manifest: bool,
 ) !void {
-    try log.info("Creating new collection: {s}", .{collection_path});
-
     const fragments_path = try std.fs.path.join(allocator, &.{ collection_path, Config.fragments_dir });
     std.fs.cwd().makePath(fragments_path) catch {
         try log.err("Failed to create directory: {s}", .{fragments_path});
@@ -71,7 +69,7 @@ fn createCollection(
     };
 
     if (!no_manifest) {
-        const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "manifest" });
+        const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, "default" ++ Config.manifest_ext });
         const manifest_content =
             \\[config]
             \\heading_wrapper_template = "{fragment_id}"
@@ -99,15 +97,4 @@ fn createCollection(
         return NewError.CreateFailed;
     };
     try log.info("Created: {s}", .{example_path});
-
-    try log.info("", .{});
-    try log.info("Next steps:", .{});
-    if (!no_manifest) {
-        try log.info("  1. Edit {s}/manifest", .{collection_path});
-        try log.info("  2. Add fragments to {s}/", .{fragments_path});
-        try log.info("  3. Build with: defrag build {s}/manifest", .{collection_path});
-    } else {
-        try log.info("  1. Add fragments to {s}/", .{fragments_path});
-        try log.info("  2. Create a manifest when ready", .{});
-    }
 }
