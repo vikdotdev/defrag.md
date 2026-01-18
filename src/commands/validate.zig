@@ -121,14 +121,8 @@ fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, con
         while (iter.next() catch null) |entry| {
             if (entry.kind != .directory) continue;
 
-            const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
-            if (!paths.fileExists(manifest_path)) continue;
-
-            validateManifest(allocator, manifest_path, config) catch {
-                failed_count += 1;
-                continue;
-            };
-            validated_count += 1;
+            const collection_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name });
+            validateCollectionManifests(allocator, collection_path, config, &validated_count, &failed_count) catch continue;
         }
     }
 
@@ -137,6 +131,30 @@ fn validateAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, con
         try log.info("Validated {d} manifest(s)", .{validated_count});
     } else {
         try log.info("Validated {d} manifest(s), {d} failed", .{ validated_count, failed_count });
+    }
+}
+
+fn validateCollectionManifests(
+    allocator: mem.Allocator,
+    collection_path: []const u8,
+    config: Config,
+    validated_count: *usize,
+    failed_count: *usize,
+) !void {
+    var collection_dir = std.fs.cwd().openDir(collection_path, .{ .iterate = true }) catch return;
+    defer collection_dir.close();
+
+    var coll_iter = collection_dir.iterate();
+    while (coll_iter.next() catch null) |file_entry| {
+        if (file_entry.kind != .file) continue;
+        if (!mem.endsWith(u8, file_entry.name, Config.manifest_ext)) continue;
+
+        const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, file_entry.name });
+        validateManifest(allocator, manifest_path, config) catch {
+            failed_count.* += 1;
+            continue;
+        };
+        validated_count.* += 1;
     }
 }
 
