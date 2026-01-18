@@ -2,7 +2,7 @@ const log = @import("../log.zig");
 
 pub fn printHelp(version: []const u8) !void {
     try log.info(
-        \\defrag - Build and manage AI instruction rulesets
+        \\defrag - Build documentation from markdown fragments
         \\
         \\Usage:
         \\    defrag <command> [options]

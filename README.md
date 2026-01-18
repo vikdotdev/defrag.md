@@ -77,7 +77,7 @@ defrag validate <manifest-path>
 ```
 Validates manifest syntax and checks that all referenced fragments exist.
 
-### Build Ruleset
+### Build
 ```bash
 defrag build <manifest-path> [--out <file>]
 ```
