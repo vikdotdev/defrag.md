@@ -144,17 +144,18 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
         while (iter.next() catch null) |entry| {
             if (entry.kind != .directory) continue;
 
-            const manifest_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name, "manifest" });
-            if (!paths.fileExists(manifest_path)) continue;
-
-            const output_name = try std.fmt.allocPrint(allocator, "{s}{s}", .{ entry.name, paths.md_ext });
-            const output_path = try std.fs.path.join(allocator, &.{ store.path, Config.build_dir, output_name });
-
-            buildManifest(allocator, manifest_path, output_path, config) catch |err| {
-                try log.warn("Failed to build {s}: {}", .{ manifest_path, err });
+            const collection_path = try std.fs.path.join(allocator, &.{ collections_path, entry.name });
+            buildCollectionManifests(
+                allocator,
+                collection_path,
+                entry.name,
+                store.path,
+                config,
+                &built_count,
+            ) catch |err| {
+                try log.warn("Failed to process collection {s}: {}", .{ entry.name, err });
                 continue;
             };
-            built_count += 1;
         }
     }
 
@@ -162,6 +163,35 @@ fn buildAllManifests(allocator: mem.Allocator, store_filter: ?[]const u8, config
         try log.info("No manifests found", .{});
     } else {
         try log.info("Built {d} manifest(s)", .{built_count});
+    }
+}
+
+fn buildCollectionManifests(
+    allocator: mem.Allocator,
+    collection_path: []const u8,
+    collection_name: []const u8,
+    store_path: []const u8,
+    config: Config,
+    built_count: *usize,
+) !void {
+    var collection_dir = std.fs.cwd().openDir(collection_path, .{ .iterate = true }) catch return;
+    defer collection_dir.close();
+
+    var coll_iter = collection_dir.iterate();
+    while (coll_iter.next() catch null) |file_entry| {
+        if (file_entry.kind != .file) continue;
+        if (!mem.endsWith(u8, file_entry.name, Config.manifest_ext)) continue;
+
+        const manifest_path = try std.fs.path.join(allocator, &.{ collection_path, file_entry.name });
+        const prefix = getManifestPrefix(file_entry.name);
+        const output_name = try std.fmt.allocPrint(allocator, "{s}.{s}{s}", .{ collection_name, prefix, paths.md_ext });
+        const output_path = try std.fs.path.join(allocator, &.{ store_path, Config.build_dir, output_name });
+
+        buildManifest(allocator, manifest_path, output_path, config) catch |err| {
+            try log.warn("Failed to build {s}: {}", .{ manifest_path, err });
+            continue;
+        };
+        built_count.* += 1;
     }
 }
 

@@ -181,7 +181,7 @@ test "build: basic - simple manifest with 2 rules" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/basic/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/basic/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -196,7 +196,7 @@ test "build: comment handling - manifest comments ignored" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/basic/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/basic/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -209,7 +209,7 @@ test "build: code blocks preserved" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/with_code_blocks/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/with_code_blocks/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -223,7 +223,7 @@ test "build: no EOF newline handled" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/no_eof_newline/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/no_eof_newline/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -236,7 +236,7 @@ test "build: nested 2 levels" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/nested/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/nested/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -251,7 +251,7 @@ test "build: nested complex 3 levels" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/nested_complex/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/nested_complex/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -266,7 +266,7 @@ test "build: missing manifest error" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/nonexistent/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/nonexistent/default.manifest", output);
     defer result.deinit();
 
     try result.expectFailure();
@@ -280,7 +280,7 @@ test "build: missing rule warns but continues" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/missing_rule/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/missing_rule/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -293,7 +293,7 @@ test "build: invalid nesting auto-corrects" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/invalid_nesting/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/invalid_nesting/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -307,7 +307,7 @@ test "build: too many levels error" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/too_many_levels/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/too_many_levels/default.manifest", output);
     defer result.deinit();
 
     try result.expectFailure();
@@ -322,7 +322,7 @@ test "build: cross-collection inclusion" {
     var result = try t.buildWithConfig(
         allocator,
         "fixtures/config.json",
-        "fixtures/collections/collection_inclusion/manifest",
+        "fixtures/collections/collection_inclusion/default.manifest",
         output,
     );
     defer result.deinit();
@@ -338,7 +338,7 @@ test "build: nesting warning" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/nesting_warning/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/nesting_warning/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -351,7 +351,7 @@ test "build: multiple level jumps" {
     defer allocator.free(output);
     defer t.cleanup(output);
 
-    var result = try t.build(allocator, "fixtures/collections/multiple_level_jumps/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/multiple_level_jumps/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -364,7 +364,7 @@ test "build: auto-create build dir" {
     defer allocator.free(output);
     defer t.cleanupDir("zig-out/defragtest/auto-create-subdir");
 
-    var result = try t.build(allocator, "fixtures/collections/basic/manifest", output);
+    var result = try t.build(allocator, "fixtures/collections/basic/default.manifest", output);
     defer result.deinit();
 
     try result.expectSuccess();
@@ -376,7 +376,7 @@ test "build: auto-create build dir" {
 test "validate: basic - valid manifest passes" {
     const allocator = std.testing.allocator;
 
-    var result = try t.validate(allocator, "fixtures/collections/basic/manifest");
+    var result = try t.validate(allocator, "fixtures/collections/basic/default.manifest");
     defer result.deinit();
 
     try result.expectSuccess();
@@ -386,7 +386,7 @@ test "validate: basic - valid manifest passes" {
 test "validate: missing manifest error" {
     const allocator = std.testing.allocator;
 
-    var result = try t.validate(allocator, "fixtures/collections/nonexistent/manifest");
+    var result = try t.validate(allocator, "fixtures/collections/nonexistent/default.manifest");
     defer result.deinit();
 
     try result.expectFailure();
@@ -395,7 +395,7 @@ test "validate: missing manifest error" {
 test "validate: missing rule reports error" {
     const allocator = std.testing.allocator;
 
-    var result = try t.validate(allocator, "fixtures/collections/missing_rule/manifest");
+    var result = try t.validate(allocator, "fixtures/collections/missing_rule/default.manifest");
     defer result.deinit();
 
     try result.expectFailure();
@@ -404,7 +404,7 @@ test "validate: missing rule reports error" {
 test "validate: nested fragments" {
     const allocator = std.testing.allocator;
 
-    var result = try t.validate(allocator, "fixtures/collections/invalid_nesting/manifest");
+    var result = try t.validate(allocator, "fixtures/collections/invalid_nesting/default.manifest");
     defer result.deinit();
 
     try result.expectSuccess();
